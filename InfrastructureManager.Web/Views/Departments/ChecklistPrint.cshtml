@@ -1,0 +1,196 @@
+@model InfrastructureManager.Application.DTOs.Departments.DepartmentReportDto
+@{
+    Layout = null;
+    ViewData["Title"] = $"Controlelijst – {Model.Name}";
+}
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@Model.Name – Controlelijst</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11pt;
+            color: #1a1a1a;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        .print-controls {
+            position: fixed;
+            top: 1rem;
+            right: 1.5rem;
+            display: flex;
+            gap: .5rem;
+            z-index: 999;
+        }
+
+        .print-controls button,
+        .print-controls a {
+            padding: .45rem 1rem;
+            border-radius: 6px;
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-print { background: #2F4F8F; color: #fff; }
+        .btn-back  { background: #f0eeea; color: #333; }
+
+        .report-page {
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem;
+        }
+
+        .report-header {
+            border-bottom: 3px solid #2F4F8F;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .report-title {
+            font-size: 20pt;
+            font-weight: 700;
+            color: #2F4F8F;
+            margin: 0;
+        }
+
+        .report-subtitle {
+            font-size: 11pt;
+            color: #666;
+            margin: .25rem 0 0;
+        }
+
+        .report-meta {
+            font-size: 9pt;
+            color: #999;
+            margin-top: .5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+            margin-bottom: .75rem;
+        }
+
+        th {
+            background: #f5f4f0;
+            text-align: left;
+            padding: .4rem .5rem;
+            font-weight: 700;
+            font-size: 9pt;
+            border: 1px solid #ddd;
+            color: #333;
+        }
+
+        td {
+            padding: .6rem .5rem;
+            border: 1px solid #e8e8e8;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) td { background: #fafaf9; }
+
+        .checkbox-col { width: 60px; text-align: center; font-size: 15pt; }
+        .remark-col   { width: 240px; }
+
+        .signature-block {
+            margin-top: 2.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .signature-line {
+            border-top: 1px solid #999;
+            margin-top: 2.5rem;
+            padding-top: .3rem;
+            font-size: 9pt;
+            color: #666;
+        }
+
+        @@media print {
+            .print-controls { display: none !important; }
+            body { font-size: 10pt; }
+            .report-page { padding: 0; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="print-controls">
+    <button class="btn-print" onclick="window.print()">
+        &#x1F5A8; Afdrukken
+    </button>
+    <a class="btn-back"
+       href="@Url.Action("Details", "Departments", new { id = Model.Id })">
+        ← Terug
+    </a>
+</div>
+
+<div class="report-page">
+
+    <div class="report-header">
+        <h1 class="report-title">Controlelijst — @Model.Name</h1>
+        <div class="report-subtitle">
+            @Model.LocationName, @Model.LocationCity &nbsp;·&nbsp; @Model.Address
+        </div>
+        <div class="report-meta">
+            Blanco lijst — ter plaatse in te vullen &nbsp;·&nbsp;
+            Aangemaakt @Model.GeneratedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+        </div>
+    </div>
+
+    @if (Model.Devices.Any())
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Toestel</th>
+                    <th>Type</th>
+                    <th>Netwerk</th>
+                    <th class="checkbox-col">Aanwezig</th>
+                    <th class="remark-col">Opmerkingen</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var dev in Model.Devices)
+                {
+                    <tr>
+                        <td>@dev.Name</td>
+                        <td>@dev.DeviceType</td>
+                        <td>@(dev.NetworkName ?? "-")</td>
+                        <td class="checkbox-col">&#9744;</td>
+                        <td class="remark-col">&nbsp;</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>Geen toestellen in dit departement.</p>
+    }
+
+    <div class="signature-block">
+        <div>
+            <div class="signature-line">Naam &amp; handtekening</div>
+        </div>
+        <div>
+            <div class="signature-line">Datum</div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

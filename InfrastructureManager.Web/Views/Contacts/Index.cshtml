@@ -1,0 +1,101 @@
+@model IEnumerable<InfrastructureManager.Web.ViewModels.Contacts.ContactListViewModel>
+
+@{
+    ViewData["Title"] = "Contacts";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Responsible persons</div>
+        <h1 class="page-heading">Contacts</h1>
+    </div>
+    <div>
+        <a asp-action="Create" class="btn btn-primary custom-btn">
+            <i class="bi bi-plus-lg"></i>
+            Add Contact
+        </a>
+    </div>
+</div>
+
+<div class="content-card mb-4">
+    <form method="get" class="row g-3">
+        <div class="col-md-5">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" value="@ViewBag.Search" placeholder="Search contacts..." />
+            </div>
+        </div>
+        <div class="col-md-4">
+            <select name="departmentId" class="form-select" asp-items="ViewBag.Departments">
+                <option value="">All Departments</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary custom-btn w-100">
+                <i class="bi bi-search"></i> Filter
+            </button>
+            <a asp-action="Index" class="btn btn-light custom-btn">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="content-card">
+
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-people"></i></div>
+            <div class="empty-title">No contacts found</div>
+            <div class="empty-description">Add responsible persons per department or location.</div>
+        </div>
+    }
+    else
+    {
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Department</th>
+                    <th>Location</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@item.Id" class="table-link fw-semibold">
+                                @item.FullName
+                            </a>
+                        </td>
+                        <td>@(item.Role ?? "-")</td>
+                        <td>@item.DepartmentName</td>
+                        <td>@(item.LocationName ?? "-")</td>
+                        <td>
+                            <a href="mailto:@item.Email" class="table-link">@item.Email</a>
+                        </td>
+                        <td>@(item.Phone ?? "-")</td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-light">View</a>
+                                <a asp-action="Edit"    asp-route-id="@item.Id" class="btn btn-sm btn-primary">Edit</a>
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post"
+                                      onsubmit="return confirm('Delete @item.FullName?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+</div>

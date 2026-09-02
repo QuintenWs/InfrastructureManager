@@ -1,0 +1,214 @@
+@model InfrastructureManager.Web.ViewModels.Visits.VisitIndexViewModel
+
+@{
+    ViewData["Title"] = "Bezoeken";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Opvolging ter plaatse</div>
+        <h1 class="page-heading">Bezoeken &amp; Actiepunten</h1>
+    </div>
+    @if (Model.SelectedDepartmentId.HasValue)
+    {
+        <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId"
+           class="btn btn-primary custom-btn">
+            <i class="bi bi-plus-lg"></i> Nieuw bezoek registreren
+        </a>
+    }
+</div>
+
+<div class="content-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Departement</label>
+            <select name="departmentId" class="form-select" onchange="this.form.submit()">
+                <option value="">— alle departementen (open actiepunten) —</option>
+                @foreach (var d in Model.Departments)
+                {
+                    if (d.Value == Model.SelectedDepartmentId?.ToString())
+                    {
+                        <option value="@d.Value" selected>@d.Text</option>
+                    }
+                    else
+                    {
+                        <option value="@d.Value">@d.Text</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-light custom-btn w-100">
+                <i class="bi bi-funnel"></i> Bekijken
+            </button>
+        </div>
+    </form>
+</div>
+
+@if (!Model.SelectedDepartmentId.HasValue)
+{
+    <div class="content-card">
+        <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <h3>Open actiepunten — alle departementen</h3>
+            @if (Model.GlobalOpenItems.Any())
+            {
+                <span class="table-meta">@Model.GlobalOpenItems.Count item@(Model.GlobalOpenItems.Count == 1 ? "" : "s")</span>
+            }
+        </div>
+
+        @if (!Model.GlobalOpenItems.Any())
+        {
+            <div class="empty-state py-4">
+                <div class="empty-icon"><i class="bi bi-clipboard-check"></i></div>
+                <div class="empty-title">Niets openstaand</div>
+                <div class="empty-description">Alle departementen zijn helemaal bij.</div>
+            </div>
+        }
+        else
+        {
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Departement</th>
+                        <th>Omschrijving</th>
+                        <th>Prioriteit</th>
+                        <th>Status</th>
+                        <th>Sinds</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.GlobalOpenItems)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-action="Index" asp-route-departmentId="@item.DepartmentId" class="table-link">
+                                    @item.DepartmentName
+                                </a>
+                                <div class="table-subtitle">@item.LocationName</div>
+                            </td>
+                            <td>@item.Description</td>
+                            <td><partial name="_PriorityBadge" model="item.Priority" /></td>
+                            <td><partial name="_ActionItemStatusBadge" model="item.Status" /></td>
+                            <td class="text-secondary small">@item.CreatedAt.ToString("dd/MM/yyyy")</td>
+                            <td class="text-end">
+                                @if (item.Status != "InProgress")
+                                {
+                                    <form asp-action="SetInProgress" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="actionItemId" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-light">In behandeling</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}
+else
+{
+    <div class="details-grid">
+        <div class="details-main">
+            <div class="content-card mb-4">
+                <div class="card-header-custom d-flex justify-content-between align-items-center">
+                    <h3>Open actiepunten</h3>
+                    @if (Model.OpenItems.Any())
+                    {
+                        <span class="table-meta">@Model.OpenItems.Count item@(Model.OpenItems.Count == 1 ? "" : "s")</span>
+                    }
+                </div>
+                @if (!Model.OpenItems.Any())
+                {
+                    <div class="empty-notes">Geen openstaande punten voor dit departement.</div>
+                }
+                else
+                {
+                    <table class="table align-middle">
+                        <thead>
+                            <tr><th>Omschrijving</th><th>Prioriteit</th><th>Status</th><th>Sinds</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.OpenItems)
+                            {
+                                <tr>
+                                    <td>@item.Description</td>
+                                    <td><partial name="_PriorityBadge" model="item.Priority" /></td>
+                                    <td><partial name="_ActionItemStatusBadge" model="item.Status" /></td>
+                                    <td class="text-secondary small">@item.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                    <td class="text-end">
+                                        @if (item.Status != "InProgress")
+                                        {
+                                            <form asp-action="SetInProgress" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="actionItemId" value="@item.Id" />
+                                                <input type="hidden" name="departmentId" value="@Model.SelectedDepartmentId" />
+                                                <button type="submit" class="btn btn-sm btn-light">In behandeling</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            <div class="content-card">
+                <div class="card-header-custom"><h3>Bezoekhistoriek</h3></div>
+                @if (!Model.Visits.Any())
+                {
+                    <div class="empty-notes">Nog geen bezoeken geregistreerd.</div>
+                }
+                else
+                {
+                    <div class="timeline">
+                        @foreach (var visit in Model.Visits)
+                        {
+                            <div class="timeline-entry">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-body">
+                                    <div class="timeline-header">
+                                        <span class="timeline-user">@visit.UserDisplayName</span>
+                                        <span class="timeline-date">@visit.VisitDate.ToString("dd/MM/yyyy")</span>
+                                        @if (visit.ResolvedItemCount > 0)
+                                        {
+                                            <span class="status-badge status-active">@visit.ResolvedItemCount opgelost</span>
+                                        }
+                                        @if (visit.NewItemCount > 0)
+                                        {
+                                            <span class="status-badge status-maintenance">@visit.NewItemCount nieuw</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(visit.Summary))
+                                    {
+                                        <div class="timeline-note">@visit.Summary</div>
+                                    }
+                                    <a asp-action="Details" asp-route-id="@visit.Id" class="small">Details bekijken →</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="details-sidebar">
+            <div class="content-card">
+                <div class="details-section-title">@Model.DepartmentLabel</div>
+                <div class="quick-actions">
+                    <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId"
+                       class="btn btn-primary custom-btn">
+                        <i class="bi bi-plus-lg"></i> Nieuw bezoek
+                    </a>
+                    <a asp-controller="Departments" asp-action="Details" asp-route-id="@Model.SelectedDepartmentId"
+                       class="btn btn-light custom-btn">
+                        <i class="bi bi-building"></i> Naar departement
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}

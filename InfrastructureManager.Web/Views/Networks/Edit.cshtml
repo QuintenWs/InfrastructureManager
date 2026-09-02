@@ -1,0 +1,153 @@
+@model InfrastructureManager.Web.ViewModels.Networks.UpdateNetworkViewModel
+
+@{
+    ViewData["Title"] = "Edit Network";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index">Networks</a><span>/</span><span>Edit</span>
+        </div>
+        <h1 class="page-heading">Edit Network</h1>
+    </div>
+</div>
+
+<form asp-action="Edit" method="post">
+
+    <input asp-for="Id" type="hidden" />
+    <partial name="_ValidationSummary" />
+
+    <div class="content-card">
+        <div class="details-section-title">General</div>
+        <div class="row g-4">
+
+            <div class="col-md-6">
+                <label asp-for="DepartmentId"></label>
+                <select asp-for="DepartmentId"
+                        asp-items="Model.Departments"
+                        class="form-select">
+                    <option value="">Select Department</option>
+                </select>
+                <span asp-validation-for="DepartmentId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Name"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="NetworkAddress"></label>
+                <input asp-for="NetworkAddress" class="form-control" />
+                <span asp-validation-for="NetworkAddress" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="SubnetMask"></label>
+                <input asp-for="SubnetMask" class="form-control" />
+                <span asp-validation-for="SubnetMask" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Cidr"></label>
+                <input asp-for="Cidr" class="form-control" />
+                <span asp-validation-for="Cidr" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Gateway"></label>
+                <input asp-for="Gateway" class="form-control" />
+                <span asp-validation-for="Gateway" class="text-danger small"></span>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="content-card mt-4">
+        <div class="details-section-title">DNS &amp; Access</div>
+        <div class="row g-4">
+
+            <div class="col-md-6">
+                <label asp-for="PrimaryDns"></label>
+                <input asp-for="PrimaryDns" class="form-control" />
+                <span asp-validation-for="PrimaryDns" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="SecondaryDns"></label>
+                <input asp-for="SecondaryDns" class="form-control" />
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-check mt-2">
+                    <input asp-for="IsInternetAccessible" class="form-check-input" />
+                    <label asp-for="IsInternetAccessible" class="form-check-label"></label>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="content-card mt-4">
+        <div class="details-section-title">DHCP</div>
+        <div class="row g-4">
+
+            <div class="col-12">
+                <div class="form-check">
+                    <input asp-for="IsDhcpEnabled" class="form-check-input" id="dhcpToggle" />
+                    <label asp-for="IsDhcpEnabled" class="form-check-label"></label>
+                </div>
+            </div>
+
+            <div id="dhcpFields" class="col-12 row g-4" style="display:none">
+                <div class="col-md-6">
+                    <label asp-for="DhcpRangeStart"></label>
+                    <input asp-for="DhcpRangeStart" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="DhcpRangeEnd"></label>
+                    <input asp-for="DhcpRangeEnd" class="form-control" />
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="content-card mt-4">
+        <div class="details-section-title">Optional</div>
+        <div class="row g-4">
+
+            <div class="col-md-6">
+                <label asp-for="VlanId"></label>
+                <input asp-for="VlanId" class="form-control" />
+                <span asp-validation-for="VlanId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="IspName"></label>
+                <input asp-for="IspName" class="form-control" />
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Notes"></label>
+                <textarea asp-for="Notes" rows="3" class="form-control"></textarea>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="form-actions mt-4">
+        <a asp-action="Index" class="btn btn-light custom-btn">Cancel</a>
+        <button type="submit" class="btn btn-primary custom-btn">
+            <i class="bi bi-check-circle"></i> Save Changes
+        </button>
+    </div>
+
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/networks.js"></script>
+}

@@ -1,0 +1,111 @@
+@model InfrastructureManager.Web.ViewModels.Contacts.ContactDetailsViewModel
+
+@{
+    ViewData["Title"] = Model.FullName;
+}
+
+<div class="details-header">
+    <div>
+        <div class="breadcrumbs">
+            <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+            <span>/</span>
+            <a asp-controller="Contacts" asp-action="Index">Contacts</a>
+            <span>/</span>
+            <span>@Model.FullName</span>
+        </div>
+        <h1 class="details-title">@Model.FullName</h1>
+        <div class="details-subtitle">@(Model.Role ?? "Contact")</div>
+    </div>
+</div>
+
+<div class="details-grid">
+
+    <div class="details-main">
+
+        <div class="content-card">
+            <div class="details-section-title">Contact Information</div>
+            <div class="info-grid">
+
+                <div class="info-item">
+                    <div class="info-label">Department</div>
+                    <div class="info-value">
+                        <a asp-controller="Departments" asp-action="Details"
+                           asp-route-id="@Model.DepartmentId" class="table-link">
+                            @Model.DepartmentName
+                        </a>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Location</div>
+                    <div class="info-value">@(Model.LocationName ?? "-")</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Role</div>
+                    <div class="info-value">@(Model.Role ?? "-")</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Email</div>
+                    <div class="info-value">
+                        <a href="mailto:@Model.Email" class="table-link">@Model.Email</a>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Phone</div>
+                    <div class="info-value">
+                        @if (!string.IsNullOrWhiteSpace(Model.Phone))
+                        {
+                            <a href="tel:@Model.Phone" class="table-link">@Model.Phone</a>
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Added</div>
+                    <div class="info-value">@Model.CreatedAt.ToString("dd/MM/yyyy")</div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="content-card mt-4">
+            <div class="details-section-title">Notes</div>
+            @if (string.IsNullOrWhiteSpace(Model.Notes))
+            {
+                <div class="empty-notes">No notes available.</div>
+            }
+            else
+            {
+                <div class="notes-content">@Model.Notes</div>
+            }
+        </div>
+
+    </div>
+
+    <div class="details-sidebar">
+        <div class="content-card">
+            <div class="details-section-title">Quick Actions</div>
+            <div class="quick-actions">
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                      onsubmit="return confirm('Delete @Model.FullName?');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger custom-btn w-100">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </form>
+                <a asp-action="Index" class="btn btn-light custom-btn">Back to Overview</a>
+            </div>
+        </div>
+    </div>
+
+</div>

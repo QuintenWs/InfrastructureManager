@@ -1,0 +1,99 @@
+@model InfrastructureManager.Application.DTOs.InventoryChecks.InventoryCheckDetailDto
+
+@{
+    ViewData["Title"] = "Controle details";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Controles</a>
+            <span>/</span><span>@Model.CheckDate.ToString("dd/MM/yyyy")</span>
+        </div>
+        <h1 class="page-heading">@Model.DepartmentName — @Model.CheckDate.ToString("dd/MM/yyyy")</h1>
+        <div class="text-secondary small">@Model.LocationName &nbsp;·&nbsp; door @Model.UserDisplayName</div>
+    </div>
+    <button onclick="window.print()" class="btn btn-light custom-btn no-print">
+        <i class="bi bi-printer"></i> Afdrukken / Exporteren
+    </button>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="content-card text-center">
+            <div style="font-size:1.8rem;font-weight:700">@Model.TotalCount</div>
+            <div class="text-secondary small">Gecontroleerd</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="content-card text-center">
+            <div style="font-size:1.8rem;font-weight:700;color:var(--color-success)">@Model.PresentCount</div>
+            <div class="text-secondary small">Aanwezig</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="content-card text-center">
+            <div style="font-size:1.8rem;font-weight:700;color:var(--color-danger)">@Model.MissingCount</div>
+            <div class="text-secondary small">Ontbreekt</div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Notes))
+{
+    <div class="content-card mb-4">
+        <div class="details-section-title">Algemene opmerkingen</div>
+        <div class="notes-content">@Model.Notes</div>
+    </div>
+}
+
+<div class="content-card">
+    <div class="details-section-title">Toestellen</div>
+    <table class="table align-middle">
+        <thead>
+            <tr><th>Toestel</th><th>Type</th><th>Status</th><th>Opmerking</th><th>Foto</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Items)
+            {
+                <tr>
+                    <td class="fw-semibold">@item.DeviceName</td>
+                    <td>@item.DeviceType</td>
+                    <td>
+                        @if (item.IsPresent)
+                        {
+                            <span class="status-badge status-active">Aanwezig</span>
+                        }
+                        else
+                        {
+                            <span class="status-badge status-offline">Ontbreekt</span>
+                        }
+                    </td>
+                    <td class="text-secondary">@(item.Remark ?? "—")</td>
+                    <td>
+                        @if (item.HasPhoto)
+                        {
+                            <img src="@Url.Action("Photo", "InventoryChecks", new { itemId = item.Id })"
+                                 class="photo-thumb" style="width:60px;height:60px;border-radius:6px;object-fit:cover"
+                                 data-lightbox="true" />
+                        }
+                        else
+                        {
+                            <span class="text-secondary">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script src="~/js/photo-lightbox.js"></script>
+}
+
+<style>
+    @@media print {
+        .no-print, .sidebar, .topbar { display: none !important; }
+    }
+</style>

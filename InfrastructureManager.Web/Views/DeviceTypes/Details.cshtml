@@ -1,0 +1,234 @@
+@model InfrastructureManager.Web.ViewModels.DeviceTypes.DeviceTypeDetailsViewModel
+
+@{
+    ViewData["Title"] = $"Device Type — {Model.Name}";
+}
+
+<div class="details-header">
+    <div>
+        <div class="breadcrumbs">
+            <a asp-action="Index">Device Types</a>
+            <span>/</span>
+            <span>@Model.Name</span>
+        </div>
+        <h1 class="details-title">@Model.Name</h1>
+        <div class="details-subtitle">
+            @Model.Fields.Count() field@(Model.Fields.Count() == 1 ? "" : "s") &nbsp;·&nbsp;
+            @Model.DeviceCount device@(Model.DeviceCount == 1 ? "" : "s")
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
+            <i class="bi bi-pencil"></i> Rename
+        </a>
+        <a asp-controller="Devices" asp-action="Index" class="btn btn-light custom-btn">
+            View Devices
+        </a>
+    </div>
+</div>
+
+<div class="details-grid">
+    <div class="details-main">
+
+        <div class="content-card mb-4">
+            <div class="details-section-title">Fields</div>
+
+            @if (!Model.Fields.Any())
+            {
+                <div class="empty-notes mb-4">
+                    No fields defined yet. Add your first field below.
+                </div>
+            }
+            else
+            {
+                <table class="table align-middle mb-4">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Label</th>
+                            <th>Type</th>
+                            <th>Options / Key</th>
+                            <th>Required</th>
+                            <th>Waarschuwing</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var field in Model.Fields.OrderBy(f => f.SortOrder))
+                        {
+                            <tr>
+                                <td class="text-secondary small">@field.SortOrder</td>
+                                <td class="fw-semibold">@field.Label</td>
+                                <td>
+                                    <span class="status-badge status-active"
+                                          style="font-size:.78rem">
+                                        @field.FieldType
+                                    </span>
+                                </td>
+                                <td class="text-secondary small">
+                                    @if (field.FieldType == "select" &&
+                                         !string.IsNullOrWhiteSpace(field.SelectOptions))
+                                    {
+                                        @field.SelectOptions
+                                    }
+                                    else
+                                    {
+                                        <code>@field.FieldKey</code>
+                                    }
+                                </td>
+                                <td>
+                                    @if (field.IsRequired)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (field.AlertOnExpiry)
+                                    {
+                                        <span class="status-badge status-maintenance" title="Verschijnt in 'Vervalt binnenkort' op het dashboard">
+                                            <i class="bi bi-alarm"></i> Actief
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="table-actions">
+                                        <a asp-action="EditField"
+                                           asp-route-fieldId="@field.Id"
+                                           asp-route-definitionId="@Model.Id"
+                                           class="btn btn-sm btn-primary">Edit</a>
+                                        <form asp-action="DeleteField" method="post"
+                                              onsubmit="return confirm('Delete field @field.Label? All existing values for this field on devices will be lost.');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="fieldId"      value="@field.Id" />
+                                            <input type="hidden" name="definitionId" value="@Model.Id" />
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+            <div class="details-section-title">Add Field</div>
+            <form asp-action="AddField" method="post" class="row g-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="DefinitionId" value="@Model.Id" />
+
+                <div class="col-md-4">
+                    <label class="form-label">Label <span class="text-danger">*</span></label>
+                    <input type="text" name="Label" class="form-control custom-input"
+                           placeholder="e.g. Image Version" required maxlength="100" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Field Type</label>
+                    <select name="FieldType" class="form-select" id="fieldTypeSelect">
+                        <optgroup label="Text">
+                            <option value="text">Text — short free text</option>
+                            <option value="textarea">Textarea — longer text</option>
+                        </optgroup>
+                        <optgroup label="Network">
+                            <option value="ipv4">IPv4 Address</option>
+                            <option value="ipv6">IPv6 Address</option>
+                            <option value="mac">MAC Address</option>
+                            <option value="url">URL / Management link</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="number">Number</option>
+                            <option value="date">Date</option>
+                            <option value="select">Dropdown (select)</option>
+                            <option value="checkbox">Checkbox (yes/no)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="col-md-3" id="selectOptionsCol" style="display:none">
+                    <label class="form-label">Options</label>
+                    <input type="text" name="SelectOptions" class="form-control custom-input"
+                           placeholder="Option1,Option2,Option3" />
+                    <div class="text-secondary small mt-1">Comma-separated</div>
+                </div>
+
+                <div class="col-md-3" id="expiryAlertCol" style="display:none">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" name="AlertOnExpiry" value="true"
+                               class="form-check-input" id="alertOnExpiryAdd" />
+                        <input type="hidden" name="AlertOnExpiry" value="false" />
+                        <label class="form-check-label" for="alertOnExpiryAdd">
+                            Waarschuw bij vervaldatum
+                        </label>
+                    </div>
+                    <div class="text-secondary small mt-1">Verschijnt dan op het dashboard</div>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <div>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" name="IsRequired" value="true"
+                                   class="form-check-input" id="isRequired" />
+                            <label class="form-check-label" for="isRequired">Required</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary custom-btn w-100">
+                            <i class="bi bi-plus-lg"></i> Add
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+
+    <div class="details-sidebar">
+        <div class="content-card">
+            <div class="details-section-title">Quick Actions</div>
+            <div class="quick-actions">
+                <a asp-action="Edit" asp-route-id="@Model.Id"
+                   class="btn btn-primary custom-btn">
+                    <i class="bi bi-pencil"></i> Rename Type
+                </a>
+                <a asp-action="Index" class="btn btn-light custom-btn">
+                    All Device Types
+                </a>
+            </div>
+        </div>
+        <div class="content-card mt-3">
+            <div class="details-section-title">Field Types</div>
+            <div class="text-secondary" style="font-size:.85rem">
+                <div class="mb-1"><strong>Text</strong> — free text input</div>
+                <div class="mb-1"><strong>Number</strong> — numeric only</div>
+                <div class="mb-1"><strong>Date</strong> — date picker, kan een vervalwaarschuwing krijgen</div>
+                <div><strong>Dropdown</strong> — choose from a predefined list</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const typeSelect = document.getElementById('fieldTypeSelect');
+    const optionsCol = document.getElementById('selectOptionsCol');
+    const expiryCol  = document.getElementById('expiryAlertCol');
+
+    function toggleOptions() {
+        optionsCol.style.display = typeSelect.value === 'select' ? '' : 'none';
+        expiryCol.style.display  = typeSelect.value === 'date'   ? '' : 'none';
+    }
+
+    typeSelect.addEventListener('change', toggleOptions);
+    toggleOptions();
+</script>
+}

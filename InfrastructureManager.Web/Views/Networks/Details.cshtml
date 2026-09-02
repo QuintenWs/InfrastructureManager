@@ -1,0 +1,196 @@
+@model InfrastructureManager.Web.ViewModels.Networks.NetworkDetailsViewModel
+
+@{
+    ViewData["Title"] = "Network Details";
+}
+
+<div class="details-header">
+
+    <div>
+
+        <div class="breadcrumbs">
+            <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+            <span>/</span>
+            <a asp-controller="Networks" asp-action="Index">Networks</a>
+            <span>/</span>
+            <span>@Model.Name</span>
+        </div>
+
+        <h1 class="details-title">@Model.Name</h1>
+
+        <div class="details-subtitle">@Model.LocationName</div>
+
+    </div>
+
+</div>
+
+<div class="details-grid">
+
+    <div class="details-main">
+
+        <div class="content-card">
+
+            <div class="details-section-title">Network Information</div>
+
+            <div class="info-grid">
+
+                <div class="info-item">
+                    <div class="info-label">Network Address</div>
+                    <div class="info-value">@Model.NetworkAddress</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Subnet Mask</div>
+                    <div class="info-value">@Model.SubnetMask</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">CIDR</div>
+                    <div class="info-value">/@Model.Cidr</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Gateway</div>
+                    <div class="info-value">@Model.Gateway</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">VLAN</div>
+                    <div class="info-value">@(Model.VlanId?.ToString() ?? "-")</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">ISP</div>
+                    <div class="info-value">@(Model.IspName ?? "-")</div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="content-card mt-4">
+
+            <div class="details-section-title">DHCP &amp; DNS</div>
+
+            <div class="info-grid">
+
+                <div class="info-item">
+                    <div class="info-label">Primary DNS</div>
+                    <div class="info-value">
+                        @(string.IsNullOrWhiteSpace(Model.PrimaryDns) ? "-" : Model.PrimaryDns)
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Secondary DNS</div>
+                    <div class="info-value">
+                        @(string.IsNullOrWhiteSpace(Model.SecondaryDns) ? "-" : Model.SecondaryDns)
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">DHCP Enabled</div>
+                    <div class="info-value">@(Model.IsDhcpEnabled ? "Yes" : "No")</div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">DHCP Start</div>
+                    <div class="info-value">
+                        @(string.IsNullOrWhiteSpace(Model.DhcpRangeStart) ? "-" : Model.DhcpRangeStart)
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">DHCP End</div>
+                    <div class="info-value">
+                        @(string.IsNullOrWhiteSpace(Model.DhcpRangeEnd) ? "-" : Model.DhcpRangeEnd)
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Internet Access</div>
+                    <div class="info-value">@(Model.IsInternetAccessible ? "Enabled" : "Disabled")</div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="content-card mt-4">
+
+            <div class="details-section-title">Connected Devices</div>
+
+            @if (!Model.Devices.Any())
+            {
+                <div class="empty-notes">No devices connected.</div>
+            }
+            else
+            {
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>IP</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var device in Model.Devices)
+                        {
+                            <tr>
+                                <td>@device.Name</td>
+                                <td>@device.IpAddress</td>
+                                <td>@device.DeviceType</td>
+                                <td>@device.Status</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+        </div>
+
+        <div class="content-card mt-4">
+
+            <div class="details-section-title">Notes</div>
+
+            @if (string.IsNullOrWhiteSpace(Model.Notes))
+            {
+                <div class="empty-notes">No notes available.</div>
+            }
+            else
+            {
+                <div class="notes-content">@Model.Notes</div>
+            }
+
+        </div>
+
+    </div>
+
+    <div class="details-sidebar">
+
+        <div class="content-card">
+
+            <div class="details-section-title">Quick Actions</div>
+
+            <div class="quick-actions">
+
+                <a asp-action="Edit"
+                   asp-route-id="@Model.Id"
+                   class="btn btn-primary custom-btn">
+                    Edit
+                </a>
+
+                <a asp-action="Index"
+                   class="btn btn-light custom-btn">
+                    Back to Overview
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

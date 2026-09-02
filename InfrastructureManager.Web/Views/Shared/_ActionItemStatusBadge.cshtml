@@ -1,0 +1,16 @@
+@model string
+@{
+    var cls = Model switch
+    {
+        "Resolved"   => "status-active",
+        "InProgress" => "status-maintenance",
+        _            => "status-offline"
+    };
+    var label = Model switch
+    {
+        "Resolved"   => "Opgelost",
+        "InProgress" => "In behandeling",
+        _            => "Open"
+    };
+}
+<span class="status-badge @cls">@label</span>

@@ -1,0 +1,102 @@
+@model InfrastructureManager.Web.ViewModels.DeviceTypes.EditFieldViewModel
+@{
+    ViewData["Title"] = "Edit Field";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index">Device Types</a>
+            <span>/</span>
+            <a asp-action="Details" asp-route-id="@Model.DefinitionId">Type</a>
+            <span>/</span><span>Edit Field</span>
+        </div>
+        <h1 class="page-heading">Edit Field</h1>
+    </div>
+</div>
+
+<div class="form-page">
+    <div class="form-card">
+        <form asp-action="EditField" method="post">
+            <input asp-for="FieldId"      type="hidden" />
+            <input asp-for="DefinitionId" type="hidden" />
+            <partial name="_ValidationSummary" />
+
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label asp-for="Label"></label>
+                    <input asp-for="Label" class="form-control custom-input" />
+                    <span asp-validation-for="Label" class="text-danger small"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="FieldType"></label>
+                    <select name="FieldType" class="form-select" id="fieldTypeSelect">
+                        <optgroup label="Text">
+                            <option value="text">Text — short free text</option>
+                            <option value="textarea">Textarea — longer text</option>
+                        </optgroup>
+                        <optgroup label="Network">
+                            <option value="ipv4">IPv4 Address</option>
+                            <option value="ipv6">IPv6 Address</option>
+                            <option value="mac">MAC Address</option>
+                            <option value="url">URL / Management link</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="number">Number</option>
+                            <option value="date">Date</option>
+                            <option value="select">Dropdown (select)</option>
+                            <option value="checkbox">Checkbox (yes/no)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group" id="selectOptionsCol">
+                    <label asp-for="SelectOptions"></label>
+                    <input asp-for="SelectOptions" class="form-control custom-input"
+                           placeholder="Option1,Option2,Option3" />
+                    <div class="text-secondary small mt-1">Comma-separated — only used for Dropdown fields</div>
+                </div>
+
+            </div>
+
+            <div class="form-check mt-3">
+                <input asp-for="IsRequired" class="form-check-input" />
+                <label asp-for="IsRequired" class="form-check-label"></label>
+            </div>
+
+            <div class="form-check mt-2" id="expiryAlertCheck">
+                <input asp-for="AlertOnExpiry" class="form-check-input" />
+                <label asp-for="AlertOnExpiry" class="form-check-label"></label>
+                <div class="text-secondary small mt-1">Verschijnt dan in "Vervalt binnenkort" op het dashboard.</div>
+            </div>
+
+            <div class="form-actions mt-4">
+                <a asp-action="Details" asp-route-id="@Model.DefinitionId"
+                   class="btn btn-light custom-btn">Cancel</a>
+                <button type="submit" class="btn btn-primary custom-btn">
+                    <i class="bi bi-check-lg"></i> Save Field
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const sel = document.getElementById('fieldTypeSelect');
+        const col = document.getElementById('selectOptionsCol');
+        const expiryCheck = document.getElementById('expiryAlertCheck');
+
+        function toggle() {
+            col.style.display = sel.value === 'select' ? '' : 'none';
+            expiryCheck.style.display = sel.value === 'date' ? '' : 'none';
+        }
+
+        sel.addEventListener('change', toggle);
+        toggle();
+    </script>
+}

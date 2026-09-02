@@ -1,0 +1,214 @@
+@model InfrastructureManager.Web.ViewModels.Networks.NetworkIndexViewModel
+@using InfrastructureManager.Domain.Enums
+
+@{
+    ViewData["Title"] = "Networks";
+    var f = Model.Filter;
+    var hasFilter = !string.IsNullOrWhiteSpace(f.Search)
+                 || f.DepartmentId.HasValue
+                 || f.IsDhcpEnabled.HasValue
+                 || f.IsInternetAccessible.HasValue
+                 || f.VlanId.HasValue
+                 || !string.IsNullOrWhiteSpace(f.IspName);
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Infrastructure</div>
+        <h1 class="page-heading">Networks</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Create" class="btn btn-primary custom-btn">
+            <i class="bi bi-plus-lg"></i> Add Network
+        </a>
+    </div>
+</div>
+
+<div class="content-card mb-3">
+    <form method="get" id="filterForm">
+        <div class="d-flex gap-2 align-items-center">
+            <div class="search-box flex-grow-1">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" value="@f.Search"
+                       placeholder="Search name, address, gateway, ISP..." />
+            </div>
+            <button type="button"
+                    class="btn btn-light custom-btn @(hasFilter ? "btn-filter-active" : "")"
+                    data-bs-toggle="collapse" data-bs-target="#filterPanel">
+                <i class="bi bi-funnel"></i> Filters
+                @if (hasFilter)
+                {
+                    <span class="filter-badge">!</span>
+                }
+            </button>
+            <button type="submit" class="btn btn-primary custom-btn">
+                <i class="bi bi-search"></i>
+            </button>
+            @if (hasFilter)
+            {
+                <a asp-action="Index" class="btn btn-light custom-btn" title="Clear filters">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            }
+        </div>
+
+        <div class="collapse @(hasFilter ? "show" : "")" id="filterPanel">
+            <div class="filter-panel mt-3">
+                <div class="row g-3">
+
+                    <div class="col-md-4">
+                        <label class="filter-label">Department</label>
+                        <select name="departmentId" class="form-select form-select-sm">
+                            <option value="">All departments</option>
+                            @foreach (var d in f.Departments)
+                            {
+                                if (d.Value == f.DepartmentId?.ToString())
+                                {
+                                    <option value="@d.Value" selected>@d.Text</option>
+                                }
+                                else
+                                {
+                                    <option value="@d.Value">@d.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="filter-label">DHCP</label>
+                        <select name="isDhcpEnabled" class="form-select form-select-sm">
+                            <option value="">Any</option>
+                            @if (f.IsDhcpEnabled == true)
+                            {
+                                <option value="true" selected>Enabled</option>
+                            }
+                            else
+                            {
+                                <option value="true">Enabled</option>
+                            }
+                            @if (f.IsDhcpEnabled == false)
+                            {
+                                <option value="false" selected>Disabled</option>
+                            }
+                            else
+                            {
+                                <option value="false">Disabled</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="filter-label">Internet</label>
+                        <select name="isInternetAccessible" class="form-select form-select-sm">
+                            <option value="">Any</option>
+                            @if (f.IsInternetAccessible == true)
+                            {
+                                <option value="true" selected>Accessible</option>
+                            }
+                            else
+                            {
+                                <option value="true">Accessible</option>
+                            }
+                            @if (f.IsInternetAccessible == false)
+                            {
+                                <option value="false" selected>Not accessible</option>
+                            }
+                            else
+                            {
+                                <option value="false">Not accessible</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="filter-label">VLAN ID</label>
+                        <input type="number" name="vlanId" value="@f.VlanId"
+                               class="form-control form-control-sm" placeholder="e.g. 10" />
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="filter-label">ISP</label>
+                        <input type="text" name="ispName" value="@f.IspName"
+                               class="form-control form-control-sm" placeholder="e.g. Proximus" />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="content-card">
+    @if (!Model.Networks.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-diagram-3"></i></div>
+            <div class="empty-title">No networks found</div>
+        </div>
+    }
+    else
+    {
+        <div class="table-meta mb-2 text-secondary small">
+            @Model.Networks.Count() network@(Model.Networks.Count() == 1 ? "" : "s")
+        </div>
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Subnet</th>
+                    <th>Gateway</th>
+                    <th>VLAN</th>
+                    <th>DHCP</th>
+                    <th>Internet</th>
+                    <th>Devices</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Networks)
+                {
+                    <tr>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@item.Id"
+                               class="table-link fw-semibold">@item.Name</a>
+                        </td>
+                        <td class="text-secondary">@item.DepartmentName</td>
+                        <td><code>@item.NetworkAddress/@item.Cidr</code></td>
+                        <td>@item.Gateway</td>
+                        <td>@(item.VlanId?.ToString() ?? "-")</td>
+                        <td>
+                            @if (item.IsDhcpEnabled)
+                            {
+                                <span class="status-badge status-active">Yes</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge status-offline">No</span>
+                            }
+                        </td>
+                        <td>
+                            @if (item.IsInternetAccessible)
+                            {
+                                <span class="status-badge status-active">Yes</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge status-offline">No</span>
+                            }
+                        </td>
+                        <td>@item.DeviceCount</td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a asp-action="Details" asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-light">View</a>
+                                <a asp-action="Edit" asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-primary">Edit</a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

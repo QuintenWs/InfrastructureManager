@@ -1,0 +1,102 @@
+/* ── Photo Upload Drag & Drop ───────────────────────────────────────────────── */
+
+.drop-zone {
+    border: 2px dashed var(--border-color, #d0cfc9);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    background: var(--surface-subtle, #fafaf9);
+    user-select: none;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+    border-color: var(--primary, #5a6fd8);
+    background: rgba(90,111,216,.04);
+}
+
+.drop-zone-icon {
+    font-size: 2.5rem;
+    color: var(--text-muted, #9c9a92);
+    margin-bottom: .5rem;
+}
+
+.drop-zone-label {
+    font-size: .95rem;
+    color: var(--text-secondary, #6c6b66);
+}
+
+.drop-zone-hint {
+    font-size: .8rem;
+    color: var(--text-muted, #9c9a92);
+    margin-top: .25rem;
+}
+
+/* ── Preview grid ────────────────────────────────────────────────────────────── */
+
+.photo-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 1rem;
+}
+
+.photo-preview-card {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f1f0ec;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.photo-preview-card img {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-preview-name {
+    font-size: .7rem;
+    padding: 4px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #555;
+    background: #fff;
+    border-top: 1px solid rgba(0,0,0,.06);
+}
+
+.photo-preview-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .8rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: background .15s;
+}
+
+.photo-preview-remove:hover {
+    background: rgba(220,53,69,.85);
+}
+
+.file-counter {
+    font-size: .85rem;
+    color: var(--text-secondary, #6c6b66);
+    margin-top: .5rem;
+}

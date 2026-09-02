@@ -1,0 +1,129 @@
+@model InfrastructureManager.Web.ViewModels.Search.GlobalSearchViewModel
+
+@{
+    ViewData["Title"] = string.IsNullOrWhiteSpace(Model.Query)
+        ? "Search" : $"Search — {Model.Query}";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Global Search</div>
+        <h1 class="page-heading">Search</h1>
+    </div>
+</div>
+
+<div class="content-card mb-4">
+    <form method="get" class="row g-3">
+        <div class="col-md-9">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text"
+                       name="q"
+                       value="@Model.Query"
+                       placeholder="Search devices, networks, locations, departments..."
+                       autofocus />
+            </div>
+            <div class="text-secondary small mt-1">
+                Doorzoekt toestellen (naam, IP, MAC, serienummer, ...), netwerken,
+                locaties, departementen, contacten, bezoeken, actiepunten en
+                controles — inclusief opgeloste/afgeronde items.
+            </div>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary custom-btn w-100">
+                <i class="bi bi-search"></i> Search
+            </button>
+            @if (!string.IsNullOrWhiteSpace(Model.Query))
+            {
+                <a asp-action="Index" class="btn btn-light custom-btn">Reset</a>
+            }
+        </div>
+    </form>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Query))
+{
+    <div class="content-card">
+
+        @if (!Model.Results.Any())
+        {
+            <div class="empty-state py-4">
+                <div class="empty-icon"><i class="bi bi-search"></i></div>
+                <div class="empty-title">No results found</div>
+                <div class="empty-description">
+                    Nothing matched <strong>@Model.Query</strong>.
+                    Try a different term.
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="mb-3 text-secondary small">
+                @Model.Results.Count result@(Model.Results.Count == 1 ? "" : "s")
+                for <strong>@Model.Query</strong>
+            </div>
+
+            @foreach (var group in Model.Results.GroupBy(r => r.Category))
+            {
+                <div class="search-group mb-4">
+                    <div class="search-group-title">
+                        <i class="bi @group.First().Icon me-1"></i>
+                        @group.Key
+                        <span class="search-group-count">@group.Count()</span>
+                    </div>
+
+                    <div class="search-results-list">
+                        @foreach (var result in group)
+                        {
+                            <a asp-controller="@result.Controller"
+                               asp-action="@result.Action"
+                               asp-route-id="@result.Id"
+                               class="search-result-item">
+                                <div class="search-result-icon">
+                                    <i class="bi @result.Icon"></i>
+                                </div>
+                                <div class="search-result-body">
+                                    <div class="search-result-title">
+                                        @HighlightMatch(result.Title, Model.Query)
+                                    </div>
+                                    <div class="search-result-subtitle text-secondary">
+                                        @result.Subtitle
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(result.Detail))
+                                    {
+                                        <div class="search-result-detail">
+                                            @HighlightMatch(result.Detail, Model.Query)
+                                        </div>
+                                    }
+                                </div>
+                                <div class="search-result-arrow">
+                                    <i class="bi bi-chevron-right"></i>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        }
+
+    </div>
+}
+
+@functions {
+    Microsoft.AspNetCore.Html.IHtmlContent HighlightMatch(string text, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query) || string.IsNullOrWhiteSpace(text))
+            return new Microsoft.AspNetCore.Html.HtmlString(Html.Encode(text));
+
+        var idx = text.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return new Microsoft.AspNetCore.Html.HtmlString(Html.Encode(text));
+
+        var before = Html.Encode(text[..idx]);
+        var match  = Html.Encode(text.Substring(idx, query.Length));
+        var after  = Html.Encode(text[(idx + query.Length)..]);
+
+        return new Microsoft.AspNetCore.Html.HtmlString(
+            $"{before}<mark class=\"search-highlight\">{match}</mark>{after}");
+    }
+}

@@ -1,0 +1,85 @@
+@model InfrastructureManager.Web.ViewModels.InventoryChecks.CreateInventoryCheckViewModel
+
+@{
+    ViewData["Title"] = "Nieuwe controle";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Controles</a>
+            <span>/</span><span>Nieuw</span>
+        </div>
+        <h1 class="page-heading">Controle — @Model.DepartmentName</h1>
+        <div class="text-secondary small">@Model.LocationName</div>
+    </div>
+</div>
+
+@if (!Model.Items.Any())
+{
+    <div class="content-card">
+        <div class="empty-state py-4">
+            <div class="empty-icon"><i class="bi bi-inboxes"></i></div>
+            <div class="empty-title">Geen toestellen</div>
+            <div class="empty-description">Dit departement heeft nog geen toestellen om te controleren.</div>
+        </div>
+    </div>
+}
+else
+{
+    <form asp-action="Create" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="DepartmentId" />
+        <input type="hidden" asp-for="DepartmentName" />
+        <input type="hidden" asp-for="LocationName" />
+
+        <div class="content-card mb-4">
+            <div class="details-section-title">Algemene opmerkingen</div>
+            <textarea asp-for="Notes" rows="2" class="form-control custom-input"
+                      placeholder="Context of bijzonderheden bij deze controle..."></textarea>
+        </div>
+
+        <div class="content-card mb-4">
+            <div class="details-section-title">Toestellen (@Model.Items.Count)</div>
+            <div class="d-flex flex-column gap-3">
+                @for (int i = 0; i < Model.Items.Count; i++)
+                {
+                    var item = Model.Items[i];
+                    <div class="content-card" style="background:var(--color-surface-subtle)">
+                        <input type="hidden" asp-for="Items[i].DeviceId" />
+                        <input type="hidden" asp-for="Items[i].DeviceName" />
+                        <input type="hidden" asp-for="Items[i].DeviceType" />
+
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-3">
+                                <div class="fw-semibold">@item.DeviceName</div>
+                                <div class="text-secondary small">@item.DeviceType</div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Items[i].IsPresent" class="form-check-input" id="present_@i" />
+                                    <label class="form-check-label" for="present_@i">Aanwezig</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <textarea asp-for="Items[i].Remark" rows="1" class="form-control custom-input"
+                                          placeholder="Opmerking (optioneel)"></textarea>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="file" asp-for="Items[i].Photo" class="form-control"
+                                       accept="image/jpeg,image/png,image/gif,image/webp" />
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId" class="btn btn-light custom-btn">Annuleren</a>
+            <button type="submit" class="btn btn-primary custom-btn">
+                <i class="bi bi-check-lg"></i> Controle opslaan
+            </button>
+        </div>
+    </form>
+}

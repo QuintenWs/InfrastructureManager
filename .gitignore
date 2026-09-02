@@ -1,0 +1,13 @@
+# Secrets
+appsettings.Development.json
+appsettings.Production.json
+*.pfx
+*.p12
+
+# User secrets
+%APPDATA%/Microsoft/UserSecrets/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal

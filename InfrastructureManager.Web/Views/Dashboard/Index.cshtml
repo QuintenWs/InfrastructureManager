@@ -1,0 +1,356 @@
+@model InfrastructureManager.Web.ViewModels.Dashboard.DashboardViewModel
+@using InfrastructureManager.Application.DTOs.Dashboard
+
+@{
+    ViewData["Title"] = "Dashboard";
+    var s = Model.Settings;
+}
+
+<div class="dashboard-page">
+
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">Infrastructure Dashboard</h1>
+            <p class="dashboard-subtitle">Overview of locations, departments, networks and devices.</p>
+        </div>
+        <div>
+            <button class="btn btn-light custom-btn" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#widgetSettings">
+                <i class="bi bi-sliders"></i> Customize
+            </button>
+        </div>
+    </div>
+
+    <div class="collapse mb-4" id="widgetSettings">
+        <div class="content-card">
+            <div class="details-section-title">Preferences</div>
+            <form asp-action="SaveSettings" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small text-secondary text-uppercase"
+                           style="letter-spacing:.05em">Default Location Filter</label>
+                    <select name="DefaultLocationId" class="form-select" style="max-width:300px">
+                        <option value="">All Locations</option>
+                        @foreach (var loc in Model.AvailableLocations)
+                        {
+                            if (loc.Value == s.DefaultLocationId?.ToString())
+                            {
+                                <option value="@loc.Value" selected>@loc.Text</option>
+                            }
+                            else
+                            {
+                                <option value="@loc.Value">@loc.Text</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <label class="form-label fw-semibold small text-secondary text-uppercase"
+                       style="letter-spacing:.05em">Visible Widgets</label>
+                <div class="row g-3 mb-3">
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   name="ShowStatCards" value="true" id="ws1"
+                                   @(s.ShowStatCards ? "checked" : "") />
+                            <input type="hidden" name="ShowStatCards" value="false" />
+                            <label class="form-check-label" for="ws1">Statistics Cards</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   name="ShowDeviceStatus" value="true" id="ws2"
+                                   @(s.ShowDeviceStatus ? "checked" : "") />
+                            <input type="hidden" name="ShowDeviceStatus" value="false" />
+                            <label class="form-check-label" for="ws2">Device Status</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   name="ShowRecentDevices" value="true" id="ws3"
+                                   @(s.ShowRecentDevices ? "checked" : "") />
+                            <input type="hidden" name="ShowRecentDevices" value="false" />
+                            <label class="form-check-label" for="ws3">Recent Devices</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   name="ShowRecentActivity" value="true" id="ws4"
+                                   @(s.ShowRecentActivity ? "checked" : "") />
+                            <input type="hidden" name="ShowRecentActivity" value="false" />
+                            <label class="form-check-label" for="ws4">Activity Feed</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   name="ShowExpiringItems" value="true" id="ws5"
+                                   @(s.ShowExpiringItems ? "checked" : "") />
+                            <input type="hidden" name="ShowExpiringItems" value="false" />
+                            <label class="form-check-label" for="ws5">Vervalt binnenkort</label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <button type="submit" class="btn btn-primary custom-btn btn-sm">
+                    <i class="bi bi-check-lg"></i> Save Preferences
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @if (s.DefaultLocationId.HasValue && Model.FilteredLocationName != null)
+    {
+        <div class="alert alert-info custom-alert d-flex align-items-center gap-2 py-2 mb-3">
+            <i class="bi bi-geo-alt-fill"></i>
+            Showing data for <strong>@Model.FilteredLocationName</strong>
+            <a href="#"
+               onclick="document.querySelector('[data-bs-target=\'#widgetSettings\']').click();return false;"
+               class="ms-2 text-decoration-none small">Change</a>
+        </div>
+    }
+
+    @if (s.ShowStatCards)
+    {
+        <div class="stats-grid">
+            <div class="stat-card gradient-blue">
+                <div class="stat-icon"><i class="bi bi-geo-alt"></i></div>
+                <div class="stat-value">@Model.TotalLocations</div>
+                <div class="stat-label">Locations</div>
+            </div>
+            <div class="stat-card gradient-purple">
+                <div class="stat-icon"><i class="bi bi-building"></i></div>
+                <div class="stat-value">@Model.TotalDepartments</div>
+                <div class="stat-label">Departments</div>
+            </div>
+            <div class="stat-card gradient-dark">
+                <div class="stat-icon"><i class="bi bi-pc-display"></i></div>
+                <div class="stat-value">@Model.TotalDevices</div>
+                <div class="stat-label">Devices</div>
+            </div>
+            <div class="stat-card gradient-green">
+                <div class="stat-icon"><i class="bi bi-diagram-3"></i></div>
+                <div class="stat-value">@Model.TotalNetworks</div>
+                <div class="stat-label">Networks</div>
+            </div>
+        </div>
+    }
+
+    @if (s.ShowExpiringItems)
+    {
+        <div class="content-card">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h3>Vervalt binnenkort</h3>
+                @if (Model.ExpiringItems.Any())
+                {
+                    <span class="table-meta">@Model.ExpiringItems.Count() item@(Model.ExpiringItems.Count() == 1 ? "" : "s")</span>
+                }
+            </div>
+            @if (!Model.ExpiringItems.Any())
+            {
+                <div class="empty-state py-3">
+                    <div class="empty-icon"><i class="bi bi-shield-check"></i></div>
+                    <div class="empty-title">Niets te melden</div>
+                    <div class="empty-description">Geen vervaldatums binnen 30 dagen.</div>
+                </div>
+            }
+            else
+            {
+                <div class="expiring-list">
+                    @foreach (var item in Model.ExpiringItems)
+                    {
+                        var expired = item.DaysRemaining < 0;
+                        <a asp-controller="Devices" asp-action="Details" asp-route-id="@item.DeviceId"
+                           class="expiring-item">
+                            <div>
+                                <div class="expiring-item-name">@item.DeviceName</div>
+                                <div class="expiring-item-meta">
+                                    @item.FieldLabel — @item.DepartmentName, @item.LocationName
+                                </div>
+                            </div>
+                            <span class="status-badge @(expired ? "status-offline" : "status-maintenance")">
+                                @if (expired)
+                                {
+                                    @($"Verlopen op {item.ExpiryDate:dd/MM/yyyy}")
+                                }
+                                else
+                                {
+                                    @($"Nog {item.DaysRemaining} dag{(item.DaysRemaining == 1 ? "" : "en")} — {item.ExpiryDate:dd/MM/yyyy}")
+                                }
+                            </span>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @if (s.ShowDeviceStatus || s.ShowRecentDevices)
+    {
+        <div class="dashboard-grid">
+            @if (s.ShowDeviceStatus)
+            {
+                <div class="content-card">
+                    <div class="card-header-custom"><h3>Device Status Overview</h3></div>
+                    <div class="status-grid">
+                        <div class="status-card status-active">
+                            <div class="status-value">@Model.ActiveDevices</div>
+                            <div class="status-label">Active</div>
+                        </div>
+                        <div class="status-card status-offline">
+                            <div class="status-value">@Model.OfflineDevices</div>
+                            <div class="status-label">Offline</div>
+                        </div>
+                        <div class="status-card status-maintenance">
+                            <div class="status-value">@Model.MaintenanceDevices</div>
+                            <div class="status-label">Maintenance</div>
+                        </div>
+                        <div class="status-card status-retired">
+                            <div class="status-value">@Model.RetiredDevices</div>
+                            <div class="status-label">Retired</div>
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (s.ShowRecentDevices)
+            {
+                <div class="content-card">
+                    <div class="card-header-custom"><h3>Recently Added Devices</h3></div>
+                    <div class="recent-devices-list">
+                        @if (!Model.RecentDevices.Any())
+                        {
+                            <div class="empty-state">No devices yet.</div>
+                        }
+                        else
+                        {
+                            @foreach (var item in Model.RecentDevices)
+                            {
+                                <a asp-controller="Devices" asp-action="Details"
+                                   asp-route-id="@item.Id" class="recent-device-item">
+                                    <div>
+                                        <div class="recent-device-name">@item.Name</div>
+                                        <div class="recent-device-location">@item.LocationName</div>
+                                    </div>
+                                    <span class="device-type-badge">@item.DeviceType</span>
+                                </a>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (s.ShowRecentActivity)
+    {
+        <div class="content-card">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h3>Recent Activity</h3>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="History" asp-action="Index" class="small">
+                        Volledige geschiedenis →
+                    </a>
+                }
+            </div>
+            @if (!Model.RecentActivity.Any())
+            {
+                <div class="empty-state py-3">
+                    <div class="empty-icon"><i class="bi bi-clock-history"></i></div>
+                    <div class="empty-title">No activity yet</div>
+                </div>
+            }
+            else
+            {
+                <div class="activity-feed">
+                    @foreach (var entry in Model.RecentActivity)
+                    {
+                        var hasChanges = entry.Action == "UPDATE" && entry.Changes.Any();
+                        var entryId    = $"audit-{entry.Id}";
+                        <div class="activity-item">
+                            <div class="activity-icon @GetActionClass(entry.Action)">
+                                <i class="bi @GetActionIcon(entry.Action)"></i>
+                            </div>
+                            <div class="activity-body">
+                                <span class="activity-user">@entry.UserDisplayName</span>
+                                <span class="activity-action">@entry.Action.ToLower()d</span>
+                                <span class="activity-entity fw-semibold">@entry.EntityLabel</span>
+                                <span class="text-secondary" style="font-size:.8rem">(@entry.EntityType)</span>
+                                @if (hasChanges)
+                                {
+                                    <button class="btn btn-link btn-sm p-0 ms-2 activity-toggle"
+                                            type="button" data-target="@entryId"
+                                            style="font-size:.8rem;text-decoration:none;color:inherit;opacity:.6">
+                                        <i class="bi bi-chevron-down"></i> changes
+                                    </button>
+                                    <div id="@entryId" class="activity-changes" style="display:none">
+                                        <table class="table table-sm mt-2 mb-0" style="font-size:.82rem">
+                                            <thead><tr><th style="width:30%">Field</th><th>Before</th><th>After</th></tr></thead>
+                                            <tbody>
+                                                @foreach (var change in entry.Changes)
+                                                {
+                                                    <tr>
+                                                        <td class="text-secondary">@change.Field</td>
+                                                        <td><span class="text-danger">@(string.IsNullOrWhiteSpace(change.OldValue) ? "-" : change.OldValue)</span></td>
+                                                        <td><span class="text-success">@(string.IsNullOrWhiteSpace(change.NewValue) ? "-" : change.NewValue)</span></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </div>
+                            <div class="activity-time text-secondary" style="font-size:.8rem;white-space:nowrap">
+                                @GetRelativeTime(entry.CreatedAt)
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script>
+    document.querySelectorAll('.activity-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = document.getElementById(btn.dataset.target);
+            const icon   = btn.querySelector('i');
+            const isOpen = target.style.display !== 'none';
+            target.style.display = isOpen ? 'none' : 'block';
+            icon.className = isOpen ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+        });
+    });
+</script>
+}
+
+@functions {
+    string GetActionClass(string a) => a switch {
+        "CREATE" => "activity-create", "UPDATE" => "activity-update",
+        "DELETE" => "activity-delete", _ => "activity-other"
+    };
+    string GetActionIcon(string a) => a switch {
+        "CREATE" => "bi-plus-circle-fill", "UPDATE" => "bi-pencil-fill",
+        "DELETE" => "bi-trash-fill", _ => "bi-circle-fill"
+    };
+    string GetRelativeTime(DateTime utc) {
+        var d = DateTime.UtcNow - utc;
+        if (d.TotalMinutes < 1)  return "just now";
+        if (d.TotalMinutes < 60) return $"{(int)d.TotalMinutes}m ago";
+        if (d.TotalHours   < 24) return $"{(int)d.TotalHours}h ago";
+        if (d.TotalDays    < 7)  return $"{(int)d.TotalDays}d ago";
+        return utc.ToLocalTime().ToString("dd/MM/yyyy");
+    }
+}

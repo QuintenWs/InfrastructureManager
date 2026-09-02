@@ -1,0 +1,100 @@
+/* ============================================================
+   InfrastructureManager — Design tokens
+   Eén centrale plek voor kleuren, afstanden, afrondingen en
+   schaduwen. Alle andere CSS-bestanden gebruiken deze variabelen,
+   zodat de stijl overal consistent blijft.
+   ============================================================ */
+:root {
+
+    /* Merkkleur — spaarzaam gebruikt (links, primaire knoppen, actieve states) */
+    --color-primary:        #34519f;
+    --color-primary-hover:  #293f80;
+    --color-primary-subtle: #eef1fa;
+
+    /* Neutrale tinten — de basis van de interface */
+    --color-text-primary:   #1c2230;
+    --color-text-secondary: #64748b;
+    --color-text-muted:     #97a3b5;
+
+    --color-surface:        #ffffff;
+    --color-surface-subtle: #f7f8fa;
+    --color-surface-sunken: #f1f3f6;
+
+    --color-border:         #e3e6ec;
+    --color-border-strong:  #cdd3dd;
+
+    /* Statuskleuren — subtiele achtergrond + gekleurde tekst,
+       consistent gebruikt in badges, kaarten en accenten */
+    --color-success:        #157347;
+    --color-success-bg:     #e9f7ef;
+
+    --color-danger:         #b42318;
+    --color-danger-bg:      #fbeeed;
+
+    --color-warning:        #a15c07;
+    --color-warning-bg:     #fbf1e0;
+
+    --color-info:           #3556c9;
+    --color-info-bg:        #eaf0fd;
+
+    --color-neutral-status:    #475467;
+    --color-neutral-status-bg: #eef1f4;
+
+    /* Diepte — bewust subtiel, geen zware schaduwen */
+    --shadow-xs: 0 1px 2px rgba(16, 24, 40, .04);
+    --shadow-sm: 0 1px 3px rgba(16, 24, 40, .07), 0 1px 2px rgba(16, 24, 40, .04);
+    --shadow-md: 0 4px 10px rgba(16, 24, 40, .06);
+
+    /* Afronding */
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-pill: 999px;
+
+    /* Afstanden */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 28px;
+
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    line-height: 1.55;
+    background: var(--color-surface-subtle);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--color-primary-hover);
+}
+
+code {
+    font-size: .92em;
+    background: var(--color-surface-sunken);
+    padding: 1px 5px;
+    border-radius: 4px;
+}

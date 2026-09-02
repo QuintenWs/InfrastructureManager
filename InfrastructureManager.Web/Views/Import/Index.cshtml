@@ -1,0 +1,71 @@
+@{
+    ViewData["Title"] = "Bulk Import";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Data Management</div>
+        <h1 class="page-heading">Bulk Import</h1>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <div class="col-md-6">
+        <div class="content-card h-100">
+            <div class="details-section-title">
+                <i class="bi bi-1-circle-fill me-2 text-primary"></i>
+                Download Template
+            </div>
+            <p class="text-secondary" style="font-size:.93rem">
+                Download the Excel template and fill it in with your data.
+                The template contains four sheets: <strong>Locations</strong>,
+                <strong>Departments</strong>, <strong>Networks</strong> and
+                <strong>Devices</strong> — in that order.
+            </p>
+            <ul class="text-secondary mb-4" style="font-size:.87rem">
+                <li>Row 1 is the header — do not modify it.</li>
+                <li>Row 2 is an example — delete it before uploading.</li>
+                <li>Columns marked <strong>*</strong> are required.</li>
+                <li>Use the dropdowns for Device Type, Status and boolean fields.</li>
+                <li>Location, Department and Network names must match exactly across sheets.</li>
+            </ul>
+            <a asp-action="DownloadTemplate" class="btn btn-primary custom-btn">
+                <i class="bi bi-file-earmark-excel"></i>
+                Download Template
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="content-card h-100">
+            <div class="details-section-title">
+                <i class="bi bi-2-circle-fill me-2 text-primary"></i>
+                Upload Filled Template
+            </div>
+            <p class="text-secondary mb-1" style="font-size:.93rem">
+                Upload the completed template. If <strong>any single row</strong>
+                contains an error, the <strong>entire import is cancelled</strong>
+                and nothing is saved.
+            </p>
+            <div class="alert alert-warning py-2 mb-3" style="font-size:.85rem">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                Existing records with the same name will be skipped (not duplicated).
+                New records are only added when everything is valid.
+            </div>
+
+            <form asp-action="Upload" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <input type="file" name="file" class="form-control"
+                           accept=".xlsx" required />
+                    <div class="text-secondary small mt-1">.xlsx files only</div>
+                </div>
+                <button type="submit" class="btn btn-primary custom-btn">
+                    <i class="bi bi-upload"></i> Import
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,114 @@
+@model InfrastructureManager.Web.ViewModels.Visits.CreateVisitViewModel
+
+@{
+    ViewData["Title"] = "Nieuw bezoek";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Bezoeken</a>
+            <span>/</span><span>Nieuw</span>
+        </div>
+        <h1 class="page-heading">Nieuw bezoek — @Model.DepartmentName</h1>
+        <div class="text-secondary small">@Model.LocationName</div>
+    </div>
+</div>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="DepartmentId" />
+    <input type="hidden" asp-for="DepartmentName" />
+    <input type="hidden" asp-for="LocationName" />
+
+    <div class="content-card mb-4">
+        <div class="details-section-title">Algemene opmerkingen</div>
+        <textarea asp-for="Summary" rows="3" class="form-control custom-input"
+                  placeholder="Algemene indruk van het bezoek, context, bijzonderheden..."></textarea>
+    </div>
+
+    <div class="content-card mb-4">
+        <div class="details-section-title">Open punten van vorige bezoeken</div>
+        @if (!Model.OpenItems.Any())
+        {
+            <div class="empty-notes">Geen openstaande punten — niets om te herbekijken.</div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-3">
+                @for (int i = 0; i < Model.OpenItems.Count; i++)
+                {
+                    var item = Model.OpenItems[i];
+                    var notesId = $"resolveNotes_{i}";
+                    <div class="content-card" style="background:var(--color-surface-subtle)">
+                        <input type="hidden" asp-for="OpenItems[i].ActionItemId" />
+                        <input type="hidden" asp-for="OpenItems[i].Description" />
+                        <input type="hidden" asp-for="OpenItems[i].Priority" />
+                        <input type="hidden" asp-for="OpenItems[i].CreatedAt" />
+                        <input type="hidden" asp-for="OpenItems[i].CreatedByDisplayName" />
+
+                        <div class="form-check">
+                            <input asp-for="OpenItems[i].Resolve" class="form-check-input resolve-toggle"
+                                   data-notes-target="@notesId" id="resolve_@i" />
+                            <label class="form-check-label" for="resolve_@i">
+                                <strong>@item.Description</strong>
+                            </label>
+                            <div class="text-secondary small mt-1">
+                                <partial name="_PriorityBadge" model="item.Priority" />
+                                gemeld door @item.CreatedByDisplayName op @item.CreatedAt.ToString("dd/MM/yyyy")
+                            </div>
+                        </div>
+
+                        <div id="@notesId" class="mt-2" style="display:none">
+                            <label class="form-label small">Opmerking bij oplossing</label>
+                            <textarea asp-for="OpenItems[i].ResolutionNotes" rows="2"
+                                      class="form-control custom-input"
+                                      placeholder="Wat is er precies gedaan?"></textarea>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="content-card mb-4">
+        <div class="details-section-title">Nieuwe punten voor een volgend bezoek</div>
+        <div id="newItemsContainer" class="d-flex flex-column gap-3">
+            @for (int i = 0; i < Model.NewItems.Count; i++)
+            {
+                <div class="new-item-row row g-3 align-items-start">
+                    <div class="col-md-7">
+                        <textarea asp-for="NewItems[i].Description" rows="2" class="form-control custom-input"
+                                  placeholder="Wat is er vastgesteld?"></textarea>
+                    </div>
+                    <div class="col-md-3">
+                        <select asp-for="NewItems[i].Priority" class="form-select">
+                            <option value="Low">Laag</option>
+                            <option value="Normal" selected>Normaal</option>
+                            <option value="High">Hoog</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-light custom-btn w-100 remove-item-row">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+        <button type="button" id="addNewItemBtn" class="btn btn-light custom-btn mt-3">
+            <i class="bi bi-plus-lg"></i> Nog een punt toevoegen
+        </button>
+    </div>
+
+    <div class="form-actions">
+        <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId" class="btn btn-light custom-btn">Annuleren</a>
+        <button type="submit" class="btn btn-primary custom-btn">
+            <i class="bi bi-check-lg"></i> Bezoek opslaan
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <script src="~/js/visits.js"></script>
+}

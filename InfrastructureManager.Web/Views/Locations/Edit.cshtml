@@ -1,0 +1,63 @@
+@model InfrastructureManager.Web.ViewModels.Locations.UpdateLocationViewModel
+
+@{
+    ViewData["Title"] = "Edit Location";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index">Locations</a><span>/</span><span>Edit</span>
+        </div>
+        <h1 class="page-heading">Edit Location</h1>
+    </div>
+</div>
+
+<div class="form-page">
+    <div class="form-card">
+        <form asp-action="Edit" method="post">
+
+            <input asp-for="Id" type="hidden" />
+            <partial name="_ValidationSummary" />
+
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label asp-for="Name"></label>
+                    <input asp-for="Name" class="form-control custom-input" />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="City"></label>
+                    <input asp-for="City" class="form-control custom-input" />
+                    <span asp-validation-for="City" class="text-danger small"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Country"></label>
+                    <input asp-for="Country" class="form-control custom-input" />
+                    <span asp-validation-for="Country" class="text-danger small"></span>
+                </div>
+
+            </div>
+
+            <div class="form-group mt-3">
+                <label asp-for="Notes"></label>
+                <textarea asp-for="Notes" rows="3" class="form-control custom-input"></textarea>
+            </div>
+
+            <div class="form-actions mt-4">
+                <a asp-action="Index" class="btn btn-light custom-btn">Cancel</a>
+                <button type="submit" class="btn btn-primary custom-btn">
+                    <i class="bi bi-check-lg"></i> Save Changes
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

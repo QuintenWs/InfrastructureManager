@@ -1,0 +1,232 @@
+@model InfrastructureManager.Web.ViewModels.History.HistoryIndexViewModel
+
+@{
+    ViewData["Title"] = "Geschiedenis";
+    var f = Model.Filter;
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Audit trail</div>
+        <h1 class="page-heading">Geschiedenis</h1>
+    </div>
+</div>
+
+<div class="content-card mb-4">
+    <form method="get">
+        <div class="row g-3 align-items-end">
+
+            <div class="col-md-3">
+                <label class="filter-label">Gebruiker</label>
+                <select name="UserId" class="form-select form-select-sm">
+                    <option value="">Alle gebruikers</option>
+                    @foreach (var u in Model.Users)
+                    {
+                        if (u.Value == f.UserId)
+                        {
+                            <option value="@u.Value" selected>@u.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@u.Value">@u.Text</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="filter-label">Type</label>
+                <select name="EntityType" class="form-select form-select-sm">
+                    <option value="">Alle types</option>
+                    @foreach (var t in Model.EntityTypes)
+                    {
+                        if (t.Value == f.EntityType)
+                        {
+                            <option value="@t.Value" selected>@t.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@t.Value">@t.Text</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="filter-label">Zoeken (naam)</label>
+                <input type="text" name="Search" value="@f.Search" class="form-control form-control-sm"
+                       placeholder="bv. SW-TEST-01, Serverruimte..." />
+            </div>
+
+            <div class="col-md-1-5" style="flex:0 0 auto; width:12.5%">
+                <label class="filter-label">Van</label>
+                <input type="date" name="FromDate" value="@(f.FromDate?.ToString("yyyy-MM-dd"))"
+                       class="form-control form-control-sm" />
+            </div>
+
+            <div class="col-md-1-5" style="flex:0 0 auto; width:12.5%">
+                <label class="filter-label">Tot</label>
+                <input type="date" name="ToDate" value="@(f.ToDate?.ToString("yyyy-MM-dd"))"
+                       class="form-control form-control-sm" />
+            </div>
+
+        </div>
+
+        @if (f.EntityId.HasValue)
+        {
+            <input type="hidden" name="EntityId" value="@f.EntityId" />
+            <div class="mt-3">
+                <span class="status-badge status-active">
+                    <i class="bi bi-funnel-fill me-1"></i>
+                    Gefilterd op één specifiek record
+                    <a asp-action="Index" asp-route-EntityType="@f.EntityType"
+                       class="ms-2 text-decoration-underline" style="color:inherit">wis deze filter</a>
+                </span>
+            </div>
+        }
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary custom-btn">
+                <i class="bi bi-funnel"></i> Filteren
+            </button>
+            <a asp-action="Index" class="btn btn-light custom-btn">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="content-card">
+    @if (!Model.Result.Items.Any())
+    {
+        <div class="empty-state py-4">
+            <div class="empty-icon"><i class="bi bi-clock-history"></i></div>
+            <div class="empty-title">Geen resultaten</div>
+            <div class="empty-description">Pas de filters aan.</div>
+        </div>
+    }
+    else
+    {
+        <div class="table-meta mb-3">
+            @Model.Result.TotalCount resultaten &nbsp;·&nbsp; pagina @Model.Result.Page van @Model.Result.TotalPages
+        </div>
+
+        <div class="activity-feed">
+            @foreach (var entry in Model.Result.Items)
+            {
+                var entryId    = $"hist-{entry.Id}";
+                var hasChanges = entry.Changes.Any();
+                <div class="activity-item">
+                    <div class="activity-icon @GetActionClass(entry.Action)">
+                        <i class="bi @GetActionIcon(entry.Action)"></i>
+                    </div>
+                    <div class="activity-body">
+                        <span class="activity-user">@entry.UserDisplayName</span>
+                        <span class="activity-action">@GetActionLabel(entry.Action)</span>
+                        <span class="activity-entity fw-semibold">@entry.EntityLabel</span>
+                        <span class="text-secondary" style="font-size:.8rem">(@TranslateType(entry.EntityType))</span>
+                        @if (hasChanges)
+                        {
+                            <button class="btn btn-link btn-sm p-0 ms-2 activity-toggle"
+                                    type="button" data-target="@entryId"
+                                    style="font-size:.8rem;text-decoration:none;color:inherit;opacity:.6">
+                                <i class="bi bi-chevron-down"></i> details
+                            </button>
+                            <div id="@entryId" class="activity-changes" style="display:none">
+                                <table class="table table-sm mt-2 mb-0" style="font-size:.82rem">
+                                    <thead><tr><th style="width:30%">Veld</th><th>Was</th><th>Werd</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var change in entry.Changes)
+                                        {
+                                            <tr>
+                                                <td class="text-secondary">@change.Field</td>
+                                                <td><span class="text-danger">@(string.IsNullOrWhiteSpace(change.OldValue) ? "-" : change.OldValue)</span></td>
+                                                <td><span class="text-success">@(string.IsNullOrWhiteSpace(change.NewValue) ? "-" : change.NewValue)</span></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                    <div class="activity-time text-secondary" style="font-size:.8rem;white-space:nowrap">
+                        @entry.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <div class="text-secondary small">Pagina @Model.Result.Page / @Model.Result.TotalPages</div>
+            <div class="d-flex gap-2">
+                @if (Model.Result.Page > 1)
+                {
+                    <a asp-action="Index" asp-all-route-data="@GetRouteData(f, Model.Result.Page - 1)"
+                       class="btn btn-sm btn-light">← Vorige</a>
+                }
+                @if (Model.Result.Page < Model.Result.TotalPages)
+                {
+                    <a asp-action="Index" asp-all-route-data="@GetRouteData(f, Model.Result.Page + 1)"
+                       class="btn btn-sm btn-light">Volgende →</a>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+    document.querySelectorAll('.activity-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = document.getElementById(btn.dataset.target);
+            const icon   = btn.querySelector('i');
+            const isOpen = target.style.display !== 'none';
+            target.style.display = isOpen ? 'none' : 'block';
+            icon.className = isOpen ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+        });
+    });
+</script>
+}
+
+@functions {
+    Dictionary<string, string> GetRouteData(InfrastructureManager.Web.ViewModels.History.HistoryFilterViewModel filter, int page)
+    {
+        var dict = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(filter.UserId))     dict["UserId"] = filter.UserId;
+        if (!string.IsNullOrWhiteSpace(filter.EntityType)) dict["EntityType"] = filter.EntityType;
+        if (filter.EntityId.HasValue)                      dict["EntityId"] = filter.EntityId.Value.ToString();
+        if (!string.IsNullOrWhiteSpace(filter.Search))     dict["Search"] = filter.Search;
+        if (filter.FromDate.HasValue)                      dict["FromDate"] = filter.FromDate.Value.ToString("yyyy-MM-dd");
+        if (filter.ToDate.HasValue)                        dict["ToDate"] = filter.ToDate.Value.ToString("yyyy-MM-dd");
+        dict["Page"] = page.ToString();
+        return dict;
+    }
+
+    string GetActionClass(string a) => a switch
+    {
+        "CREATE" => "activity-create",
+        "UPDATE" => "activity-update",
+        "DELETE" => "activity-delete",
+        _        => "activity-other"
+    };
+
+    string GetActionIcon(string a) => a switch
+    {
+        "CREATE" => "bi-plus-circle-fill",
+        "UPDATE" => "bi-pencil-fill",
+        "DELETE" => "bi-trash-fill",
+        "NOTE"   => "bi-sticky-fill",
+        "CHECK"  => "bi-clipboard-check-fill",
+        _        => "bi-circle-fill"
+    };
+
+    string GetActionLabel(string a) => a switch
+    {
+        "CREATE" => "maakte aan:",
+        "UPDATE" => "wijzigde:",
+        "DELETE" => "verwijderde:",
+        "NOTE"   => "voegde notitie toe bij:",
+        "CHECK"  => "controleerde:",
+        _        => a.ToLower() + ":"
+    };
+
+    string TranslateType(string t) => InfrastructureManager.Web.Controllers.HistoryController.TranslateType(t);
+}

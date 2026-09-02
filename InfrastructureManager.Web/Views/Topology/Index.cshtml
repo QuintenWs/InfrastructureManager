@@ -1,0 +1,179 @@
+@using InfrastructureManager.Application.DTOs.Topology
+@using InfrastructureManager.Infrastructure.Identity
+@model TopologyDto
+
+@{
+    ViewData["Title"] = "Network Topology";
+    var departments  = ViewBag.Departments as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                       ?? new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+    var departmentId = ViewBag.DepartmentId as int?;
+    var isAdmin      = User.IsInRole(AppRoles.Admin);
+}
+
+@Html.AntiForgeryToken()
+<input type="hidden" id="topoIsAdmin" value="@isAdmin.ToString().ToLower()" />
+<input type="hidden" id="topoSaveUrl" value="@Url.Action("SaveLayout", "Topology")" />
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Visualisation</div>
+        <h1 class="page-heading">Network Topology</h1>
+    </div>
+</div>
+
+<div class="content-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Select Department</label>
+            <select name="departmentId" class="form-select">
+                <option value="">— choose a department —</option>
+                @foreach (var d in departments)
+                {
+                    if (d.Value == departmentId?.ToString())
+                    {
+                        <option value="@d.Value" selected>@d.Text</option>
+                    }
+                    else
+                    {
+                        <option value="@d.Value">@d.Text</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary custom-btn w-100">
+                <i class="bi bi-diagram-3"></i> Show Topology
+            </button>
+        </div>
+    </form>
+</div>
+
+@if (Model != null)
+{
+    <div class="content-card" style="padding:0;overflow:hidden">
+
+        <div class="topo-toolbar">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <span class="fw-semibold">@Model.DepartmentName</span>
+                <span class="text-secondary small">@Model.LocationName</span>
+                @if (Model.SavedPositions != null)
+                {
+                    <span class="badge bg-success" style="font-size:.7rem">Custom layout saved</span>
+                }
+                <div class="topo-legend-bar">
+                    <span class="topo-leg topo-leg-cloud"></span>Internet
+                    <span class="topo-leg topo-leg-network ms-2"></span>Network
+                    <span class="topo-leg topo-leg-active ms-2"></span>Active
+                    <span class="topo-leg topo-leg-offline ms-1"></span>Offline
+                    <span class="topo-leg topo-leg-maintenance ms-1"></span>Maintenance
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div class="btn-group btn-group-sm">
+                    <button id="btnZoomIn"  class="btn btn-light" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                    <button id="btnZoomOut" class="btn btn-light" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                    <button id="btnFit"     class="btn btn-light" title="Fit to screen"><i class="bi bi-fullscreen"></i></button>
+                </div>
+
+                @if (isAdmin)
+                {
+                    <button id="btnDraw" class="btn btn-sm btn-outline-primary" title="Draw a connection between nodes">
+                        ✏️ Draw connection
+                    </button>
+                    <button id="btnSave" class="btn btn-sm btn-primary">
+                        <i class="bi bi-floppy"></i> Save layout
+                    </button>
+                    @if (Model.SavedPositions != null)
+                    {
+                        <form asp-action="ResetLayout" method="post" class="d-inline"
+                              onsubmit="return confirm('Reset to automatic layout?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="departmentId" value="@Model.DepartmentId" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset
+                            </button>
+                        </form>
+                    }
+                }
+            </div>
+        </div>
+
+        <div id="topoStatus" class="topo-statusbar"></div>
+
+        @if (isAdmin)
+        {
+            <div class="topo-hint-bar">
+                <i class="bi bi-info-circle me-1"></i>
+                <strong>Drag</strong> nodes to reposition &nbsp;·&nbsp;
+                <strong>✏️ Draw connection</strong> to connect nodes &nbsp;·&nbsp;
+                Select + <kbd>Delete</kbd> to remove &nbsp;·&nbsp;
+                <kbd>Escape</kbd> to cancel draw mode &nbsp;·&nbsp;
+                Click a device to open details
+            </div>
+        }
+
+        <div id="cy" style="width:100%;height:640px;background:#f8fafc"></div>
+
+    </div>
+
+    <script id="topologyData" type="application/json">
+        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model, new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        }))
+    </script>
+}
+else if (departmentId.HasValue)
+{
+    <div class="content-card">
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-diagram-3"></i></div>
+            <div class="empty-title">No data found for this department.</div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="content-card">
+        <div class="empty-state py-5">
+            <div class="empty-icon"><i class="bi bi-diagram-3"></i></div>
+            <div class="empty-title">Select a department above</div>
+            <div class="empty-description">Choose a department to visualise its network topology.</div>
+        </div>
+    </div>
+}
+
+<style>
+.topo-toolbar {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 20px; border-bottom:1px solid #e5e7eb;
+    background:white; flex-wrap:wrap; gap:10px;
+}
+.topo-statusbar {
+    padding:4px 20px; font-size:.8rem; color:#6b7280;
+    background:#f9fafb; border-bottom:1px solid #f0f0f0; min-height:26px;
+}
+.topo-hint-bar {
+    padding:6px 20px; font-size:.78rem; color:#64748b;
+    background:#f0f9ff; border-bottom:1px solid #e0f2fe;
+}
+.topo-hint-bar kbd {
+    background:#e2e8f0; border-radius:3px; padding:1px 5px;
+    font-size:.75rem; font-family:monospace;
+}
+.topo-legend-bar { font-size:.78rem; color:#6b7280; display:flex; align-items:center; gap:4px; }
+.topo-leg { display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:middle; }
+.topo-leg-cloud       { background:#818cf8; border-radius:3px; }
+.topo-leg-network     { background:#1e40af; border-radius:3px; }
+.topo-leg-active      { background:#16a34a; }
+.topo-leg-offline     { background:#dc2626; }
+.topo-leg-maintenance { background:#d97706; }
+</style>
+
+@section Scripts {
+<script src="~/lib/lodash.min.js"></script>
+<script src="~/lib/cytoscape.min.js"></script>
+<script src="~/lib/cytoscape-edgehandles.js"></script>
+<script src="~/js/topology.js"></script>
+}

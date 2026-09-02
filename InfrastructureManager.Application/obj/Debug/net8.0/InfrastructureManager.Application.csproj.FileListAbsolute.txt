@@ -1,0 +1,15 @@
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/bin/Debug/net8.0/InfrastructureManager.Application.deps.json
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/bin/Debug/net8.0/InfrastructureManager.Application.dll
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/bin/Debug/net8.0/InfrastructureManager.Application.pdb
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/bin/Debug/net8.0/InfrastructureManager.Domain.dll
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/bin/Debug/net8.0/InfrastructureManager.Domain.pdb
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/InfrastructureManager.Application.csproj.AssemblyReference.cache
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/InfrastructureManager.Application.GeneratedMSBuildEditorConfig.editorconfig
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/InfrastructureManager.Application.AssemblyInfoInputs.cache
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/InfrastructureManager.Application.AssemblyInfo.cs
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/InfrastructureManager.Application.csproj.CoreCompileInputs.cache
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/Infrastr.3748D4D9.Up2Date
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/InfrastructureManager.Application.dll
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/refint/InfrastructureManager.Application.dll
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/InfrastructureManager.Application.pdb
+/Users/quintenwillekens/Documents/Dashboard_network/InfrastructureManager/InfrastructureManager.Application/obj/Debug/net8.0/ref/InfrastructureManager.Application.dll

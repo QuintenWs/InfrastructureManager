@@ -1,0 +1,69 @@
+@model InfrastructureManager.Application.DTOs.Visits.SiteVisitDto
+
+@{
+    ViewData["Title"] = "Bezoek details";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Bezoeken</a>
+            <span>/</span><span>@Model.VisitDate.ToString("dd/MM/yyyy")</span>
+        </div>
+        <h1 class="page-heading">@Model.DepartmentName — @Model.VisitDate.ToString("dd/MM/yyyy")</h1>
+        <div class="text-secondary small">@Model.LocationName &nbsp;·&nbsp; door @Model.UserDisplayName</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Summary))
+{
+    <div class="content-card mb-4">
+        <div class="details-section-title">Algemene opmerkingen</div>
+        <div class="notes-content">@Model.Summary</div>
+    </div>
+}
+
+<div class="content-card mb-4">
+    <div class="details-section-title">Opgeloste punten tijdens dit bezoek (@Model.ResolvedItems.Count)</div>
+    @if (!Model.ResolvedItems.Any())
+    {
+        <div class="empty-notes">Geen punten opgelost tijdens dit bezoek.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var item in Model.ResolvedItems)
+            {
+                <div class="content-card" style="background:var(--color-success-bg); border-color:#d3ecdd">
+                    <div class="fw-semibold">@item.Description</div>
+                    @if (!string.IsNullOrWhiteSpace(item.ResolutionNotes))
+                    {
+                        <div class="text-secondary small mt-1">@item.ResolutionNotes</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<div class="content-card">
+    <div class="details-section-title">Nieuwe punten genoteerd (@Model.NewItems.Count)</div>
+    @if (!Model.NewItems.Any())
+    {
+        <div class="empty-notes">Geen nieuwe punten genoteerd tijdens dit bezoek.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var item in Model.NewItems)
+            {
+                <div class="content-card" style="background:var(--color-surface-subtle)">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div class="fw-semibold">@item.Description</div>
+                        <partial name="_PriorityBadge" model="item.Priority" />
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

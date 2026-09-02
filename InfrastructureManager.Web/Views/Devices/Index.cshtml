@@ -1,0 +1,187 @@
+@model InfrastructureManager.Web.ViewModels.Devices.DeviceIndexViewModel
+@using InfrastructureManager.Domain.Enums
+
+@{
+    ViewData["Title"] = "Devices";
+    var f = Model.Filter;
+    var hasFilter = !string.IsNullOrWhiteSpace(f.Search)
+                 || f.DeviceType.HasValue
+                 || f.Status.HasValue
+                 || f.LocationId.HasValue
+                 || f.DepartmentId.HasValue;
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Infrastructure</div>
+        <h1 class="page-heading">Devices</h1>
+    </div>
+    <div>
+        <a asp-action="Create" class="btn btn-primary custom-btn">
+            <i class="bi bi-plus-lg"></i> Add Device
+        </a>
+    </div>
+</div>
+
+<div class="content-card mb-3">
+    <form method="get" id="filterForm">
+        <div class="d-flex gap-2 align-items-center">
+            <div class="search-box flex-grow-1">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" value="@f.Search"
+                       placeholder="Search name, IP, MAC, serial, vendor..." />
+            </div>
+            <button type="button"
+                    class="btn btn-light custom-btn @(hasFilter ? "btn-filter-active" : "")"
+                    data-bs-toggle="collapse" data-bs-target="#filterPanel">
+                <i class="bi bi-funnel"></i> Filters
+                @if (hasFilter)
+                {
+                    <span class="filter-badge">!</span>
+                }
+            </button>
+            <button type="submit" class="btn btn-primary custom-btn">
+                <i class="bi bi-search"></i>
+            </button>
+            @if (hasFilter)
+            {
+                <a asp-action="Index" class="btn btn-light custom-btn" title="Clear filters">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            }
+        </div>
+
+        <div class="collapse @(hasFilter ? "show" : "")" id="filterPanel">
+            <div class="filter-panel mt-3">
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+                        <label class="filter-label">Device Type</label>
+                        <select name="deviceType" class="form-select form-select-sm">
+                            <option value="">All types</option>
+                            @foreach (var type in Enum.GetValues<DeviceType>())
+                            {
+                                if (f.DeviceType == type)
+                                {
+                                    <option value="@((int)type)" selected>@type</option>
+                                }
+                                else
+                                {
+                                    <option value="@((int)type)">@type</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="filter-label">Status</label>
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">All statuses</option>
+                            @foreach (var status in Enum.GetValues<DeviceStatus>())
+                            {
+                                if (f.Status == status)
+                                {
+                                    <option value="@((int)status)" selected>@status</option>
+                                }
+                                else
+                                {
+                                    <option value="@((int)status)">@status</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="filter-label">Location</label>
+                        <select name="locationId" class="form-select form-select-sm">
+                            <option value="">All locations</option>
+                            @foreach (var loc in f.Locations)
+                            {
+                                if (loc.Value == f.LocationId?.ToString())
+                                {
+                                    <option value="@loc.Value" selected>@loc.Text</option>
+                                }
+                                else
+                                {
+                                    <option value="@loc.Value">@loc.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="content-card">
+    @if (!Model.Devices.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-pc-display"></i></div>
+            <div class="empty-title">No devices found</div>
+            @if (hasFilter)
+            {
+                <div class="empty-description">
+                    Try adjusting your filters or
+                    <a asp-action="Index">clear all filters</a>.
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-meta mb-2 text-secondary small">
+            @Model.Devices.Count() device@(Model.Devices.Count() == 1 ? "" : "s")
+        </div>
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Type</th>
+                    <th>IP Address</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Devices)
+                {
+                    <tr>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@item.Id"
+                               class="table-link fw-semibold">@item.Name</a>
+                        </td>
+                        <td class="text-secondary">@item.DepartmentName</td>
+                        <td>@item.DeviceType</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.IpAddress))
+                            {
+                                <code>@item.IpAddress</code>
+                            }
+                            else
+                            {
+                                <span class="text-secondary">—</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="status-badge @InfrastructureManager.Web.Helpers.StatusBadgeHelper.GetStatusClass(item.Status)">
+                                @item.Status
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a asp-action="Details" asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-light">View</a>
+                                <a asp-action="Edit" asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-primary">Edit</a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

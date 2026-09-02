@@ -1,0 +1,359 @@
+@model InfrastructureManager.Web.ViewModels.Departments.DepartmentDetailsViewModel
+@using InfrastructureManager.Infrastructure.Identity
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<div class="details-header">
+    <div>
+        <div class="breadcrumbs">
+            <a asp-controller="Locations" asp-action="Details"
+               asp-route-id="@Model.LocationId">@Model.LocationName</a>
+            <span>/</span>
+            <a asp-action="Index">Departments</a>
+            <span>/</span>
+            <span>@Model.Name</span>
+        </div>
+        <h1 class="details-title">@Model.Name</h1>
+        <div class="details-subtitle">@Model.LocationName — @Model.Address</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <a asp-action="Report" asp-route-id="@Model.Id"
+           target="_blank" class="btn btn-light custom-btn">
+            <i class="bi bi-file-earmark-pdf"></i> Export PDF
+        </a>
+        <a asp-controller="Topology" asp-action="Index"
+           asp-route-departmentId="@Model.Id" class="btn btn-light custom-btn">
+            <i class="bi bi-share"></i> Topology
+        </a>
+    </div>
+</div>
+
+@if (Model.OpenActionItemCount > 0)
+{
+    <a asp-controller="Visits" asp-action="Index" asp-route-departmentId="@Model.Id"
+       class="custom-alert alert-warning mb-3" style="text-decoration:none">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>
+            <strong>@Model.OpenActionItemCount</strong>
+            open actiepunt@(Model.OpenActionItemCount == 1 ? "" : "en") voor dit departement
+        </span>
+        <span class="ms-auto small">Bekijk bezoeken →</span>
+    </a>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="content-card text-center">
+            <div style="font-size:2rem;font-weight:600">@Model.Networks.Count()</div>
+            <div class="text-secondary small">Networks</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="content-card text-center">
+            <div style="font-size:2rem;font-weight:600">@Model.DeviceTypeSummary.Sum(x => x.Count)</div>
+            <div class="text-secondary small">Devices</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="content-card text-center">
+            <div style="font-size:2rem;font-weight:600">@Model.Contacts.Count()</div>
+            <div class="text-secondary small">Contacts</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="content-card text-center">
+            <div style="font-size:2rem;font-weight:600">@Model.Photos.Count()</div>
+            <div class="text-secondary small">Photos</div>
+        </div>
+    </div>
+</div>
+
+<div class="details-grid">
+    <div class="details-main">
+
+        <div class="content-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="details-section-title mb-0">Networks</div>
+                <a asp-controller="Networks" asp-action="Create"
+                   asp-route-departmentId="@Model.Id" class="btn btn-sm btn-light">
+                    <i class="bi bi-plus-lg"></i> Add
+                </a>
+            </div>
+            @if (!Model.Networks.Any())
+            {
+                <div class="empty-notes">No networks in this department.</div>
+            }
+            else
+            {
+                <table class="table align-middle">
+                    <thead>
+                        <tr><th>Name</th><th>Subnet</th><th>Gateway</th><th>Devices</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var n in Model.Networks)
+                        {
+                            <tr>
+                                <td>
+                                    <a asp-controller="Networks" asp-action="Details"
+                                       asp-route-id="@n.Id" class="table-link fw-semibold">@n.Name</a>
+                                </td>
+                                <td><code>@n.NetworkAddress/@n.Cidr</code></td>
+                                <td>@n.Gateway</td>
+                                <td>@n.DeviceCount</td>
+                                <td class="text-end">
+                                    <a asp-controller="Networks" asp-action="Details"
+                                       asp-route-id="@n.Id" class="btn btn-sm btn-light">View</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="content-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="details-section-title mb-0">Devices by Type</div>
+                <a asp-controller="Devices" asp-action="Create"
+                   asp-route-departmentId="@Model.Id" class="btn btn-sm btn-light">
+                    <i class="bi bi-plus-lg"></i> Add Device
+                </a>
+            </div>
+            @if (!Model.DeviceTypeSummary.Any())
+            {
+                <div class="empty-notes">No devices in this department.</div>
+            }
+            else
+            {
+                <table class="table align-middle">
+                    <thead>
+                        <tr><th>Device Type</th><th class="text-end">Count</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.DeviceTypeSummary)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@row.Label</td>
+                                <td class="text-end">
+                                    <span class="status-badge status-active"
+                                          style="font-size:.85rem;padding:.25rem .7rem">
+                                        @row.Count
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <a asp-controller="Devices" asp-action="Index"
+                                       asp-route-deviceType="@((int)row.DeviceType)"
+                                       asp-route-departmentId="@Model.Id"
+                                       class="btn btn-sm btn-light">View</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="content-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="details-section-title mb-0">Contacts</div>
+                <a asp-controller="Contacts" asp-action="Create"
+                   asp-route-departmentId="@Model.Id" class="btn btn-sm btn-light">
+                    <i class="bi bi-plus-lg"></i> Add
+                </a>
+            </div>
+            @if (!Model.Contacts.Any())
+            {
+                <div class="empty-notes">No contacts assigned.</div>
+            }
+            else
+            {
+                <table class="table align-middle">
+                    <thead>
+                        <tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.Contacts)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@c.FullName</td>
+                                <td>@(c.Role ?? "-")</td>
+                                <td><a href="mailto:@c.Email" class="table-link">@c.Email</a></td>
+                                <td>@(c.Phone ?? "-")</td>
+                                <td class="text-end">
+                                    <a asp-controller="Contacts" asp-action="Edit"
+                                       asp-route-id="@c.Id" class="btn btn-sm btn-primary">Edit</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <div class="content-card">
+            <div class="details-section-title">
+                <i class="bi bi-images me-1"></i> Photos
+            </div>
+
+            @if (Model.Photos.Any())
+            {
+                <div class="row g-3 mb-4">
+                    @foreach (var photo in Model.Photos)
+                    {
+                        <div class="col-md-4">
+                            <div class="photo-card">
+                                <img src="@Url.Action("Photo", "Departments", new { id = photo.Id })"
+                                     alt="@(photo.Caption ?? Model.Name)"
+                                     class="photo-thumb"
+                                     data-lightbox="true" />
+                                @if (!string.IsNullOrWhiteSpace(photo.Caption))
+                                {
+                                    <div class="photo-caption">@photo.Caption</div>
+                                }
+                                @if (User.IsInRole(AppRoles.Admin))
+                                {
+                                    <form asp-action="DeletePhoto" method="post" class="p-2"
+                                          onsubmit="return confirm('Delete this photo?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="photoId"      value="@photo.Id" />
+                                        <input type="hidden" name="departmentId" value="@Model.Id" />
+                                        <button type="submit" class="btn btn-sm btn-danger w-100">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-notes mb-4">No photos yet.</div>
+            }
+
+            @if (User.IsInRole(AppRoles.Admin))
+            {
+                <div class="details-section-title">Upload Photos</div>
+                <form asp-action="UploadPhoto" method="post"
+                      enctype="multipart/form-data" id="photoUploadForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="departmentId" value="@Model.Id" />
+                    <input type="file" id="photoFileInput" name="files" multiple
+                           accept="image/jpeg,image/png,image/gif,image/webp"
+                           style="display:none" />
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-zone-icon"><i class="bi bi-cloud-upload"></i></div>
+                        <div class="drop-zone-label">
+                            <strong>Drag photos here</strong> or click to browse
+                        </div>
+                        <div class="drop-zone-hint">JPEG, PNG, GIF or WebP — max 10 MB</div>
+                    </div>
+                    <div class="photo-preview-grid" id="photoPreviewGrid"></div>
+                    <div class="row g-3 mt-2 align-items-end">
+                        <div class="col-md-5">
+                            <input type="text" name="caption" class="form-control"
+                                   placeholder="Caption (optional)" maxlength="200" />
+                        </div>
+                        <div class="col-md-4">
+                            <div class="file-counter" id="fileCounter">No files selected</div>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary custom-btn w-100">
+                                <i class="bi bi-upload"></i> Upload
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Notes))
+        {
+            <div class="content-card mt-4">
+                <div class="details-section-title">Notes</div>
+                <div class="notes-content">@Model.Notes</div>
+            </div>
+        }
+
+    </div>
+
+    <div class="details-sidebar">
+        <div class="content-card">
+            <div class="details-section-title">Quick Actions</div>
+            <div class="quick-actions">
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+                <a asp-action="Report" asp-route-id="@Model.Id"
+                   target="_blank" class="btn btn-light custom-btn">
+                    <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                </a>
+                <a asp-controller="Visits" asp-action="Index" asp-route-departmentId="@Model.Id"
+                   class="btn btn-light custom-btn">
+                    <i class="bi bi-clipboard-check"></i> Bezoeken
+                    @if (Model.OpenActionItemCount > 0)
+                    {
+                        <span class="filter-badge">@Model.OpenActionItemCount</span>
+                    }
+                </a>
+                <a asp-controller="InventoryChecks" asp-action="Create" asp-route-departmentId="@Model.Id"
+                   class="btn btn-light custom-btn">
+                    <i class="bi bi-clipboard-data"></i> Controle uitvoeren
+                </a>
+                <a asp-action="ChecklistPrint" asp-route-id="@Model.Id"
+                   target="_blank" class="btn btn-light custom-btn">
+                    <i class="bi bi-printer"></i> Controlelijst afdrukken
+                </a>
+                <a asp-controller="Topology" asp-action="Index"
+                   asp-route-departmentId="@Model.Id" class="btn btn-light custom-btn">
+                    <i class="bi bi-share"></i> Topology
+                </a>
+                <a asp-controller="Devices" asp-action="Index"
+                   asp-route-departmentId="@Model.Id" class="btn btn-light custom-btn">
+                    <i class="bi bi-pc-display"></i> All Devices
+                </a>
+                <a asp-controller="Locations" asp-action="Details"
+                   asp-route-id="@Model.LocationId" class="btn btn-light custom-btn">
+                    <i class="bi bi-geo-alt"></i> Location
+                </a>
+                @if (User.IsInRole(AppRoles.Admin))
+                {
+                    <a asp-controller="History" asp-action="Index"
+                       asp-route-EntityType="Department" asp-route-EntityId="@Model.Id"
+                       class="btn btn-light custom-btn">
+                        <i class="bi bi-clock-history"></i> Geschiedenis van dit departement
+                    </a>
+                }
+                <a asp-action="Index" class="btn btn-light custom-btn">Back</a>
+            </div>
+            <div class="text-secondary small mt-3">
+                @if (Model.LastCheckDate.HasValue)
+                {
+                    <span>Laatste controle: @Model.LastCheckDate.Value.ToString("dd/MM/yyyy")</span>
+                }
+                else
+                {
+                    <span>Nog nooit digitaal gecontroleerd</span>
+                }
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <div class="content-card mt-3">
+                <div class="details-section-title">Description</div>
+                <div class="notes-content">@Model.Description</div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/photo-upload.js"></script>
+    <script src="~/js/photo-lightbox.js"></script>
+}

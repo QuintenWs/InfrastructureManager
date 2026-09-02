@@ -1,0 +1,78 @@
+@model IEnumerable<InfrastructureManager.Web.ViewModels.DeviceTypes.DeviceTypeListViewModel>
+
+@{
+    ViewData["Title"] = "Device Types";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Configuration</div>
+        <h1 class="page-heading">Device Types</h1>
+    </div>
+    <div>
+        <a asp-action="Create" class="btn btn-primary custom-btn">
+            <i class="bi bi-plus-lg"></i> New Type
+        </a>
+    </div>
+</div>
+
+<div class="content-card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-cpu"></i></div>
+            <div class="empty-title">No device types defined</div>
+            <div class="empty-description">Create a device type to define which attributes devices of that type have.</div>
+        </div>
+    }
+    else
+    {
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Type Name</th>
+                    <th>Fields</th>
+                    <th>Devices</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@item.Id"
+                               class="table-link fw-semibold">@item.Name</a>
+                            @if (!string.IsNullOrWhiteSpace(item.Description))
+                            {
+                                <div class="table-subtitle">@item.Description</div>
+                            }
+                        </td>
+                        <td>
+                            <span class="status-badge status-@(item.FieldCount > 0 ? "active" : "offline")">
+                                @item.FieldCount field@(item.FieldCount == 1 ? "" : "s")
+                            </span>
+                        </td>
+                        <td>@item.DeviceCount</td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a asp-action="Details" asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-light">Manage Fields</a>
+                                <a asp-action="Edit" asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-primary">Edit</a>
+                                <form asp-action="Delete" asp-route-id="@item.Id"
+                                      method="post"
+                                      onsubmit="return confirm('Delete @item.Name and all its field definitions? Device field values will also be removed.');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

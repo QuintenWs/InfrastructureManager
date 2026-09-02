@@ -1,0 +1,382 @@
+@model InfrastructureManager.Application.DTOs.Departments.DepartmentReportDto
+@{
+    Layout = null;
+    ViewData["Title"] = $"Report – {Model.Name}";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@Model.Name – Infrastructure Report</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11pt;
+            color: #1a1a1a;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        .print-controls {
+            position: fixed;
+            top: 1rem;
+            right: 1.5rem;
+            display: flex;
+            gap: .5rem;
+            z-index: 999;
+        }
+
+        .print-controls button,
+        .print-controls a {
+            padding: .45rem 1rem;
+            border-radius: 6px;
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-print { background: #2F4F8F; color: #fff; }
+        .btn-back  { background: #f0eeea; color: #333; }
+
+        .report-page {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem;
+        }
+
+        .report-header {
+            border-bottom: 3px solid #2F4F8F;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .report-title {
+            font-size: 22pt;
+            font-weight: 700;
+            color: #2F4F8F;
+            margin: 0;
+        }
+
+        .report-subtitle {
+            font-size: 11pt;
+            color: #666;
+            margin: .25rem 0 0;
+        }
+
+        .report-meta {
+            font-size: 9pt;
+            color: #999;
+            margin-top: .5rem;
+        }
+
+        .section-title {
+            font-size: 10.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #444;
+            margin: 1.5rem 0 .4rem;
+            padding-bottom: .2rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+            margin-bottom: .75rem;
+        }
+
+        th {
+            background: #f5f4f0;
+            text-align: left;
+            padding: .3rem .5rem;
+            font-weight: 700;
+            font-size: 9pt;
+            border: 1px solid #ddd;
+            color: #333;
+        }
+
+        td {
+            padding: .3rem .5rem;
+            border: 1px solid #e8e8e8;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) td { background: #fafaf9; }
+
+        .device-block {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: .75rem;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+
+        .device-header {
+            background: #f8f7f4;
+            padding: .35rem .7rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .device-name   { font-weight: 700; font-size: 10pt; }
+        .device-badges { display: flex; gap: .4rem; font-size: 8.5pt; }
+
+        .badge        { padding: .1rem .45rem; border-radius: 20px; font-weight: 600; }
+        .badge-type   { background: #e8eaf6; color: #3949ab; }
+        .badge-active { background: #e8f5e9; color: #2e7d32; }
+        .badge-offline{ background: #fce4ec; color: #c62828; }
+        .badge-other  { background: #f5f5f5; color: #616161; }
+
+        .device-body {
+            padding: .5rem .7rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: .2rem .5rem;
+        }
+
+        .device-field       { font-size: 9pt; }
+        .device-field-label { color: #888; font-size: 8.5pt; }
+
+        .notes-box {
+            background: #fffde7;
+            border-left: 3px solid #f9a825;
+            padding: .4rem .7rem;
+            font-size: 9.5pt;
+            margin-top: .5rem;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .empty-note { color: #aaa; font-size: 9pt; font-style: italic; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: .5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-item-label { font-size: 8.5pt; color: #888; }
+        .info-item-value { font-size: 10pt; }
+
+        .report-footer {
+            margin-top: 3rem;
+            padding-top: .75rem;
+            border-top: 1px solid #ddd;
+            font-size: 8.5pt;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        @@media print {
+            .print-controls { display: none !important; }
+            body { font-size: 10pt; }
+            .report-page { padding: 0; max-width: 100%; }
+            .device-block { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="print-controls">
+    <button class="btn-print" onclick="window.print()">
+        &#x1F5A8; Print / Save as PDF
+    </button>
+    <a class="btn-back"
+       href="@Url.Action("Details", "Departments", new { id = Model.Id })">
+        ← Back
+    </a>
+</div>
+
+<div class="report-page">
+
+    <div class="report-header">
+        <h1 class="report-title">@Model.Name</h1>
+        <div class="report-subtitle">
+            @Model.LocationName, @Model.LocationCity &nbsp;·&nbsp; @Model.Address
+        </div>
+        <div class="report-meta">
+            Department Report &nbsp;·&nbsp;
+            Generated @Model.GeneratedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+        </div>
+    </div>
+
+    <div class="info-grid">
+        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <div>
+                <div class="info-item-label">Description</div>
+                <div class="info-item-value">@Model.Description</div>
+            </div>
+        }
+        <div>
+            <div class="info-item-label">Location</div>
+            <div class="info-item-value">@Model.LocationName (@Model.LocationCity)</div>
+        </div>
+        <div>
+            <div class="info-item-label">Address</div>
+            <div class="info-item-value">@Model.Address</div>
+        </div>
+        <div>
+            <div class="info-item-label">Contacts</div>
+            <div class="info-item-value">@Model.Contacts.Count()</div>
+        </div>
+        <div>
+            <div class="info-item-label">Networks</div>
+            <div class="info-item-value">@Model.Networks.Count()</div>
+        </div>
+        <div>
+            <div class="info-item-label">Devices</div>
+            <div class="info-item-value">@Model.Devices.Count()</div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Notes))
+    {
+        <div class="notes-box" style="margin-bottom:1.5rem">@Model.Notes</div>
+    }
+
+    @if (Model.Contacts.Any())
+    {
+        <div class="section-title">Contacts</div>
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Contacts)
+                {
+                    <tr>
+                        <td>@c.FullName</td>
+                        <td>@(c.Role ?? "-")</td>
+                        <td>@c.Email</td>
+                        <td>@(c.Phone ?? "-")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (Model.Networks.Any())
+    {
+        <div class="section-title">Networks</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Subnet</th>
+                    <th>Gateway</th>
+                    <th>Primary DNS</th>
+                    <th>DHCP</th>
+                    <th>Internet</th>
+                    <th>VLAN</th>
+                    <th>Devices</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var n in Model.Networks)
+                {
+                    <tr>
+                        <td>@n.Name</td>
+                        <td>@n.NetworkAddress/@n.Cidr</td>
+                        <td>@n.Gateway</td>
+                        <td>
+                            @n.PrimaryDns
+                            @if (!string.IsNullOrWhiteSpace(n.SecondaryDns))
+                            {
+                                <br /><span style="color:#aaa">@n.SecondaryDns</span>
+                            }
+                        </td>
+                        <td>
+                            @(n.IsDhcpEnabled ? "Yes" : "No")
+                            @if (!string.IsNullOrWhiteSpace(n.DhcpRange))
+                            {
+                                <br /><span style="color:#888;font-size:8.5pt">@n.DhcpRange</span>
+                            }
+                        </td>
+                        <td>@(n.IsInternetAccessible ? "Yes" : "No")</td>
+                        <td>@(n.VlanId?.ToString() ?? "-")</td>
+                        <td>@n.DeviceCount</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (Model.Devices.Any())
+    {
+        <div class="section-title">Devices (@Model.Devices.Count())</div>
+
+        @foreach (var dev in Model.Devices)
+        {
+            var badgeClass = dev.Status switch {
+                "Active"  => "badge-active",
+                "Offline" => "badge-offline",
+                _         => "badge-other"
+            };
+
+            <div class="device-block">
+                <div class="device-header">
+                    <span class="device-name">@dev.Name</span>
+                    <span class="device-badges">
+                        <span class="badge badge-type">@dev.DeviceType</span>
+                        <span class="badge @badgeClass">@dev.Status</span>
+                    </span>
+                </div>
+                <div class="device-body">
+                    @if (!string.IsNullOrWhiteSpace(dev.NetworkName))
+                    {
+                        <div class="device-field">
+                            <div class="device-field-label">Network</div>
+                            @dev.NetworkName
+                        </div>
+                    }
+                    @foreach (var cf in dev.CustomFields)
+                    {
+                        <div class="device-field">
+                            <div class="device-field-label">@cf.Label</div>
+                            @cf.Value
+                        </div>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(dev.Notes))
+                {
+                    <div class="notes-box" style="margin:.25rem .7rem .5rem">
+                        @dev.Notes
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="section-title">Devices</div>
+        <div class="empty-note">No devices in this department.</div>
+    }
+
+    <div class="report-footer">
+        <span>InfrastructureManager</span>
+        <span>@Model.Name — @Model.LocationName</span>
+        <span>@Model.GeneratedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+    </div>
+
+</div>
+
+<script>
+    window.addEventListener('load', function () {
+        setTimeout(function () { window.print(); }, 400);
+    });
+</script>
+
+</body>
+</html>

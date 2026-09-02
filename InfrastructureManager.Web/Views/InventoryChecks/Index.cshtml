@@ -1,0 +1,122 @@
+@model InfrastructureManager.Web.ViewModels.InventoryChecks.InventoryCheckIndexViewModel
+
+@{
+    ViewData["Title"] = "Controles";
+    var list = Model.SelectedDepartmentId.HasValue ? Model.Checks : Model.RecentChecks;
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Inventariscontrole</div>
+        <h1 class="page-heading">Controles</h1>
+    </div>
+    @if (Model.SelectedDepartmentId.HasValue)
+    {
+        <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId" class="btn btn-primary custom-btn">
+            <i class="bi bi-clipboard-check"></i> Nieuwe controle
+        </a>
+    }
+</div>
+
+<div class="content-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Departement</label>
+            <select name="departmentId" class="form-select" onchange="this.form.submit()">
+                <option value="">— recente controles, alle departementen —</option>
+                @foreach (var d in Model.Departments)
+                {
+                    if (d.Value == Model.SelectedDepartmentId?.ToString())
+                    {
+                        <option value="@d.Value" selected>@d.Text</option>
+                    }
+                    else
+                    {
+                        <option value="@d.Value">@d.Text</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-light custom-btn w-100">
+                <i class="bi bi-funnel"></i> Bekijken
+            </button>
+        </div>
+        @if (Model.SelectedDepartmentId.HasValue)
+        {
+            <div class="col-md-3">
+                <a asp-controller="Departments" asp-action="ChecklistPrint" asp-route-id="@Model.SelectedDepartmentId"
+                   target="_blank" class="btn btn-light custom-btn w-100">
+                    <i class="bi bi-printer"></i> Blanco afdrukken
+                </a>
+            </div>
+        }
+    </form>
+</div>
+
+<div class="content-card">
+    <div class="card-header-custom">
+        <h3>@(Model.SelectedDepartmentId.HasValue ? "Controlehistoriek" : "Recente controles — alle departementen")</h3>
+    </div>
+
+    @if (!list.Any())
+    {
+        <div class="empty-state py-4">
+            <div class="empty-icon"><i class="bi bi-clipboard-x"></i></div>
+            <div class="empty-title">Nog geen controles</div>
+            <div class="empty-description">
+                @(Model.SelectedDepartmentId.HasValue
+                    ? "Dit departement is nog niet digitaal gecontroleerd."
+                    : "Er zijn nog geen controles geregistreerd.")
+            </div>
+        </div>
+    }
+    else
+    {
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    @if (!Model.SelectedDepartmentId.HasValue)
+                    {
+                        <th>Departement</th>
+                    }
+                    <th>Datum</th>
+                    <th>Door</th>
+                    <th>Aanwezig</th>
+                    <th>Ontbreekt</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var check in list)
+                {
+                    <tr>
+                        @if (!Model.SelectedDepartmentId.HasValue)
+                        {
+                            <td>
+                                <a asp-action="Index" asp-route-departmentId="@check.DepartmentId" class="table-link">@check.DepartmentName</a>
+                                <div class="table-subtitle">@check.LocationName</div>
+                            </td>
+                        }
+                        <td>@check.CheckDate.ToString("dd/MM/yyyy")</td>
+                        <td>@check.UserDisplayName</td>
+                        <td><span class="status-badge status-active">@check.PresentCount / @check.TotalCount</span></td>
+                        <td>
+                            @if (check.MissingCount > 0)
+                            {
+                                <span class="status-badge status-offline">@check.MissingCount</span>
+                            }
+                            else
+                            {
+                                <span class="text-secondary">—</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@check.Id" class="btn btn-sm btn-light">Bekijken</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

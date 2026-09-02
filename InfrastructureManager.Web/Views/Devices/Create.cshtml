@@ -1,0 +1,111 @@
+@model InfrastructureManager.Web.ViewModels.Devices.CreateDeviceViewModel
+@using InfrastructureManager.Domain.Enums
+
+@{
+    ViewData["Title"] = "Add Device";
+}
+
+<input type="hidden" id="networkApiUrl"
+       value="@Url.Action("GetNetworksByDepartment", "Devices")" />
+<input type="hidden" id="currentNetworkId" value="" />
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index">Devices</a><span>/</span><span>Add</span>
+        </div>
+        <h1 class="page-heading">Add Device</h1>
+    </div>
+</div>
+
+<div class="form-page">
+    <div class="form-card">
+        <form asp-action="Create" method="post">
+            <partial name="_ValidationSummary" />
+
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label asp-for="DepartmentId"></label>
+                    <select asp-for="DepartmentId"
+                            asp-items="Model.Departments"
+                            class="form-select custom-input"
+                            id="DepartmentId">
+                        <option value="">Select Department</option>
+                    </select>
+                    <span asp-validation-for="DepartmentId" class="text-danger small"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="NetworkId"></label>
+                    <select asp-for="NetworkId" class="form-select" id="NetworkId">
+                        <option value="">No network</option>
+                    </select>
+                    <div class="text-secondary small mt-1">
+                        Networks load after selecting a department.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Name"></label>
+                    <input asp-for="Name" class="form-control custom-input" />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="DeviceType"></label>
+                    <select asp-for="DeviceType"
+                            asp-items="Html.GetEnumSelectList<DeviceType>()"
+                            class="form-select custom-input"
+                            id="deviceTypeSelect">
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Status"></label>
+                    <select asp-for="Status"
+                            asp-items="Html.GetEnumSelectList<DeviceStatus>()"
+                            class="form-select custom-input">
+                    </select>
+                </div>
+
+            </div>
+
+            <div id="typeFieldsSection" class="mt-4" style="display:none">
+                <div class="details-section-title">
+                    <span id="typeFieldsTitle">Device-specific fields</span>
+                </div>
+                <div class="form-grid mt-3" id="typeFieldsContainer"></div>
+            </div>
+
+            <div class="form-group mt-4">
+                <label asp-for="Notes"></label>
+                <textarea asp-for="Notes" rows="3" class="form-control custom-input"></textarea>
+            </div>
+
+            <div class="form-actions mt-4">
+                <a asp-action="Index" class="btn btn-light custom-btn">Cancel</a>
+                <button type="submit" class="btn btn-primary custom-btn">
+                    <i class="bi bi-check-lg"></i> Create Device
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/device-department.js"></script>
+    <script src="~/js/device-fields.js"></script>
+    <script>
+        DeviceFields.init({
+            selectId:    'deviceTypeSelect',
+            containerId: 'typeFieldsContainer',
+            sectionId:   'typeFieldsSection',
+            titleId:     'typeFieldsTitle',
+            apiUrl:      '@Url.Action("GetTypeFields", "Devices")',
+            deviceId:    null
+        });
+    </script>
+}

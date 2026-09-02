@@ -1,0 +1,46 @@
+@* DeviceTypes/Edit.cshtml *@
+@model InfrastructureManager.Web.ViewModels.DeviceTypes.EditDeviceTypeViewModel
+@{
+    ViewData["Title"] = "Edit Device Type";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index">Device Types</a>
+            <span>/</span>
+            <a asp-action="Details" asp-route-id="@Model.Id">@Model.Name</a>
+            <span>/</span><span>Edit</span>
+        </div>
+        <h1 class="page-heading">Edit Device Type</h1>
+    </div>
+</div>
+
+<div class="form-page">
+    <div class="form-card">
+        <form asp-action="Edit" method="post">
+            <input asp-for="Id" type="hidden" />
+            <partial name="_ValidationSummary" />
+            <div class="form-grid">
+                <div class="form-group">
+                    <label asp-for="Name"></label>
+                    <input asp-for="Name" class="form-control custom-input" />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="Description"></label>
+                    <input asp-for="Description" class="form-control custom-input" />
+                </div>
+            </div>
+            <div class="form-actions mt-4">
+                <a asp-action="Details" asp-route-id="@Model.Id"
+                   class="btn btn-light custom-btn">Cancel</a>
+                <button type="submit" class="btn btn-primary custom-btn">
+                    <i class="bi bi-check-lg"></i> Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

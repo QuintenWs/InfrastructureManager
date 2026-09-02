@@ -1,0 +1,252 @@
+/* ============================================================
+   Dashboard
+   ============================================================ */
+
+.dashboard-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dashboard-title {
+    font-size: 21px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.dashboard-subtitle {
+    color: var(--color-text-secondary);
+    margin: 0;
+    font-size: 13.5px;
+}
+
+/* ── Statistiekkaarten ──────────────────────────────────────── */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+}
+
+.stat-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-xs);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+}
+
+.gradient-blue   .stat-icon { background: var(--color-info-bg);           color: var(--color-info); }
+.gradient-purple .stat-icon { background: #f2eefb;                        color: #6d4fc7; }
+.gradient-dark   .stat-icon { background: var(--color-neutral-status-bg); color: var(--color-neutral-status); }
+.gradient-green  .stat-icon { background: var(--color-success-bg);        color: var(--color-success); }
+
+.stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-label {
+    color: var(--color-text-secondary);
+    font-size: 12.5px;
+    margin-top: 2px;
+}
+
+/* ── Content grid ─────────────────────────────────────────────── */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--space-5);
+}
+
+.card-header-custom {
+    margin-bottom: var(--space-4);
+}
+
+.card-header-custom h3 {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 700;
+}
+
+/* ── Toestelstatus-overzicht ──────────────────────────────────── */
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+}
+
+.status-card {
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    background: var(--color-surface-subtle);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--accent, var(--color-border-strong));
+}
+
+.status-card.status-active      { --accent: var(--color-success); }
+.status-card.status-offline     { --accent: var(--color-danger); }
+.status-card.status-maintenance { --accent: var(--color-warning); }
+.status-card.status-retired     { --accent: var(--color-neutral-status); }
+
+.status-value {
+    font-size: 21px;
+    font-weight: 700;
+}
+
+.status-label {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+/* ── Recent toegevoegde toestellen ────────────────────────────── */
+
+.recent-devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.recent-device-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+    transition: border-color .15s ease, background .15s ease;
+}
+
+.recent-device-item:hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-subtle);
+}
+
+.recent-device-name {
+    color: var(--color-text-primary);
+    font-weight: 600;
+    font-size: 13.5px;
+}
+
+.recent-device-location {
+    color: var(--color-text-secondary);
+    font-size: 12.5px;
+    margin-top: 1px;
+}
+
+/* ── Vervalt binnenkort ──────────────────────────────────────────
+   Zelfde lijst-stijl als "recent toegevoegd" — bewust herbruikt,
+   zodat elk nieuw dashboard-onderdeel er automatisch bij aansluit. */
+
+.expiring-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.expiring-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+    transition: border-color .15s ease, background .15s ease;
+}
+
+.expiring-item:hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-subtle);
+}
+
+.expiring-item-name {
+    color: var(--color-text-primary);
+    font-weight: 600;
+    font-size: 13.5px;
+}
+
+.expiring-item-meta {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-top: 1px;
+}
+
+/* ── Activiteitenfeed ─────────────────────────────────────────── */
+
+.activity-feed {
+    display: flex;
+    flex-direction: column;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-1);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.activity-create { background: var(--color-success-bg); color: var(--color-success); }
+.activity-update { background: var(--color-info-bg);    color: var(--color-info); }
+.activity-delete { background: var(--color-danger-bg);  color: var(--color-danger); }
+.activity-other  { background: var(--color-neutral-status-bg); color: var(--color-neutral-status); }
+
+.activity-body {
+    flex: 1;
+    font-size: 13.5px;
+    line-height: 1.4;
+}
+
+.activity-user   { font-weight: 600; margin-right: 4px; }
+.activity-action { margin-right: 4px; color: var(--color-text-secondary); }
+.activity-entity { font-weight: 600; margin-right: 4px; }
+
+.activity-time {
+    text-align: right;
+    min-width: 64px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
