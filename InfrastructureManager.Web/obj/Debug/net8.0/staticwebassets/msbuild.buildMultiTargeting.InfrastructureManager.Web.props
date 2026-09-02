@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../build/InfrastructureManager.Web.props" />
-</Project>

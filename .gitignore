@@ -1,4 +1,16 @@
-# Secrets
+# Build output
+bin/
+obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# User-specific files
+*.user
+*.suo
+
+# Secrets / configuration
 appsettings.Development.json
 appsettings.Production.json
 *.pfx
@@ -11,3 +23,6 @@ appsettings.Production.json
 *.db
 *.db-shm
 *.db-wal
+
+# macOS
+.DS_Store
