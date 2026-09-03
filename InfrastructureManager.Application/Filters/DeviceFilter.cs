@@ -9,4 +9,5 @@ public class DeviceFilter
     public DeviceStatus? Status      { get; set; }
     public int?         LocationId   { get; set; }
     public int?         DepartmentId { get; set; }
+    public IReadOnlyCollection<int>? AllowedLocationIds { get; set; }
 }

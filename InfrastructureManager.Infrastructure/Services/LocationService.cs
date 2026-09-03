@@ -54,6 +54,9 @@ public class LocationService : ILocationService
                 l.Country.ToLower().Contains(s));
         }
 
+        if (allowedLocationIds != null)
+            query = query.Where(l => allowedLocationIds.Contains(l.Id));
+
         var totalCount = await query.CountAsync();
 
         var items = await query

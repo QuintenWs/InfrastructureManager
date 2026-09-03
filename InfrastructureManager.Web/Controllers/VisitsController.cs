@@ -17,18 +17,25 @@ public class VisitsController : Controller
     private readonly IVisitService      _visitService;
     private readonly IDepartmentService _departmentService;
     private const int PageSize = 20;
+    private readonly IUserAccessService  _userAccess;
+
 
     public VisitsController(
         IVisitService      visitService,
-        IDepartmentService departmentService)
+        IDepartmentService departmentService,
+        IUserAccessService userAccess)
     {
         _visitService      = visitService;
         _departmentService = departmentService;
+        _userAccess        = userAccess;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(int? departmentId, int page = 1)
     {
+        if (departmentId.HasValue && !await _userAccess.CanAccessDepartmentAsync(User, departmentId.Value))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var departments = await GetDepartmentsAsync();
 
         var vm = new VisitIndexViewModel
@@ -73,6 +80,9 @@ public class VisitsController : Controller
     [HttpGet]
     public async Task<IActionResult> Create(int departmentId)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, departmentId))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var dept = await _departmentService.GetByIdAsync(departmentId);
         if (dept == null) return NotFound();
 
@@ -99,6 +109,9 @@ public class VisitsController : Controller
     [HttpPost]
     public async Task<IActionResult> Create(CreateVisitViewModel vm)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, vm.DepartmentId))
+        return RedirectToAction("AccessDenied", "Auth");
+        
         var dto = new CreateSiteVisitDto
         {
             DepartmentId  = vm.DepartmentId,

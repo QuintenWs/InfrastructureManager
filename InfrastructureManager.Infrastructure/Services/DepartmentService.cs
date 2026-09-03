@@ -43,6 +43,9 @@ public class DepartmentService : IDepartmentService
                 d.Location.City.ToLower().Contains(s));
         }
 
+        if (allowedLocationIds != null)
+            query = query.Where(d => allowedLocationIds.Contains(d.LocationId));
+
         var totalCount = await query.CountAsync();
 
         var items = await query

@@ -10,4 +10,5 @@ public class NetworkFilter
     public int?    DepartmentId         { get; set; }
     public int?    VlanId               { get; set; }
     public string? IspName              { get; set; }
+    public IReadOnlyCollection<int>? AllowedLocationIds { get; set; }
 }

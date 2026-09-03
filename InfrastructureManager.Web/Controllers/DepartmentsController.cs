@@ -48,7 +48,8 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(string? search, int page = 1)
     {
-        var paged      = await _service.GetPagedAsync(search, page, PageSize);
+        var allowed = await _userAccess.GetAccessibleLocationIdsAsync(User);
+        var paged      = await _service.GetPagedAsync(search, page, PageSize, allowed);
         var openCounts = await _visitService.GetOpenActionItemCountsAsync();
 
         ViewBag.Search = search;
@@ -75,6 +76,9 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, id))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var item = await _service.GetByIdAsync(id);
         if (item == null) return NotFound();
 
@@ -139,6 +143,9 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> Report(int id)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, id))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var report = await _service.GetReportAsync(id);
         if (report == null) return NotFound();
         return View(report);
@@ -149,6 +156,9 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> ChecklistPrint(int id)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, id))
+        return RedirectToAction("AccessDenied", "Auth");
+        
         var report = await _service.GetReportAsync(id);
         if (report == null) return NotFound();
         return View(report);

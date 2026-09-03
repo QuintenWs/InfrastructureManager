@@ -12,18 +12,24 @@ namespace InfrastructureManager.Web.Controllers;
 [Authorize]
 public class TopologyController : Controller
 {
-    private readonly ITopologyService _topologyService;
-    private readonly AppDbContext     _context;
+    private readonly ITopologyService    _topologyService;
+    private readonly AppDbContext        _context;
+    private readonly IUserAccessService  _userAccess;
 
-    public TopologyController(ITopologyService topologyService, AppDbContext context)
+
+    public TopologyController(ITopologyService topologyService, AppDbContext context, IUserAccessService userAccess)
     {
         _topologyService = topologyService;
         _context         = context;
+        _userAccess        = userAccess;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(int? departmentId)
     {
+        if (departmentId.HasValue && !await _userAccess.CanAccessDepartmentAsync(User, departmentId.Value))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var departments = await _context.Departments
             .Include(d => d.Location)
             .OrderBy(d => d.Location.Name).ThenBy(d => d.Name)
@@ -47,6 +53,9 @@ public class TopologyController : Controller
     [HttpGet]
     public async Task<IActionResult> Data(int departmentId)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, departmentId))
+        return Forbid();
+        
         var topology = await _topologyService.GetByDepartmentAsync(departmentId);
         if (topology == null) return NotFound();
 

@@ -69,6 +69,9 @@ public class NetworkService : INetworkService
 
         if (!string.IsNullOrWhiteSpace(filter.IspName))
             query = query.Where(x => x.IspName != null && x.IspName.Contains(filter.IspName));
+        
+        if (filter.AllowedLocationIds != null)
+            query = query.Where(x => filter.AllowedLocationIds.Contains(x.LocationId));
 
         var totalCount = await query.CountAsync();
 

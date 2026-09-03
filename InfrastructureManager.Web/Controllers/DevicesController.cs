@@ -21,6 +21,7 @@ public class DevicesController : Controller
     private readonly INetworkService         _networkService;
     private readonly IDeviceTypeService      _deviceTypeService;
     private readonly IMaintenanceLogService  _maintenanceLogService;
+    private readonly IUserAccessService      _userAccess;
 
     public DevicesController(
         IDeviceService         deviceService,
@@ -28,7 +29,8 @@ public class DevicesController : Controller
         INetworkService        networkService,
         IDeviceTypeService     deviceTypeService,
         IMaintenanceLogService maintenanceLogService,
-        IDeviceDocumentService deviceDocumentService)
+        IDeviceDocumentService deviceDocumentService,
+        IUserAccessService     userAccessService)
     {
         _deviceService         = deviceService;
         _departmentService     = departmentService;
@@ -36,6 +38,7 @@ public class DevicesController : Controller
         _deviceTypeService     = deviceTypeService;
         _maintenanceLogService = maintenanceLogService;
         _deviceDocumentService = deviceDocumentService;
+        _userAccessService     = userAccessService;
     }
 
     [HttpGet]
@@ -43,13 +46,15 @@ public class DevicesController : Controller
         string? search, DeviceType? deviceType,
         DeviceStatus? status, int? locationId, int? departmentId, int page = 1)
     {
+        var allowed = await _userAccess.GetAccessibleLocationIdsAsync(User);
         var filter = new DeviceFilter
         {
             Search       = search,
             DeviceType   = deviceType,
             Status       = status,
             LocationId   = locationId,
-            DepartmentId = departmentId
+            DepartmentId = departmentId,
+            AllowedLocationIds = allowed
         };
 
         var paged = await _deviceService.FilterPagedAsync(filter, page, PageSize);

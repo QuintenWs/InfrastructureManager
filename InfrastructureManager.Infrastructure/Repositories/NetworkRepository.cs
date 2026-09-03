@@ -77,6 +77,9 @@ public class NetworkRepository : GenericRepository<Network>, INetworkRepository
         if (!string.IsNullOrWhiteSpace(filter.IspName))
             query = query.Where(x => x.IspName != null &&
                                     x.IspName.Contains(filter.IspName));
+        
+        if (filter.AllowedLocationIds != null)
+            query = query.Where(x => filter.AllowedLocationIds.Contains(x.LocationId));
 
         return await query.OrderBy(x => x.Name).ToListAsync();
     }

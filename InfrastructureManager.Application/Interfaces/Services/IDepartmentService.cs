@@ -14,6 +14,7 @@ public interface IDepartmentService
     Task CreateAsync(CreateDepartmentDto dto);
     Task UpdateAsync(UpdateDepartmentDto dto);
     Task DeleteAsync(int id);
+    Task<PagedResult<DepartmentDto>> GetPagedAsync(string? search, int page, int pageSize, IReadOnlyCollection<int>? allowedLocationIds = null);
 }
 
 public class DepartmentPhotoResultDto

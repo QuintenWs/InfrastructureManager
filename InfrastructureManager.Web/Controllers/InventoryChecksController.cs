@@ -18,20 +18,27 @@ public class InventoryChecksController : Controller
     private readonly IDepartmentService     _departmentService;
     private readonly IDeviceService         _deviceService;
     private const int PageSize = 20;
+    private readonly IUserAccessService     _userAccess;
+
 
     public InventoryChecksController(
         IInventoryCheckService checkService,
         IDepartmentService     departmentService,
-        IDeviceService         deviceService)
+        IDeviceService         deviceService,
+        IUserAccessService     userAccess)
     {
         _checkService      = checkService;
         _departmentService = departmentService;
         _deviceService     = deviceService;
+        _userAccess        = userAccess;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(int? departmentId, int page = 1)
     {
+        if (departmentId.HasValue && !await _userAccess.CanAccessDepartmentAsync(User, departmentId.Value))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var departments = await GetDepartmentsAsync();
 
         var vm = new InventoryCheckIndexViewModel
@@ -75,6 +82,9 @@ public class InventoryChecksController : Controller
     [HttpGet]
     public async Task<IActionResult> Create(int departmentId)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, departmentId))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var dept = await _departmentService.GetByIdAsync(departmentId);
         if (dept == null) return NotFound();
 
@@ -100,6 +110,9 @@ public class InventoryChecksController : Controller
     [RequestSizeLimit(50_000_000)] // several photos per submission
     public async Task<IActionResult> Create(CreateInventoryCheckViewModel vm)
     {
+        if (!await _userAccess.CanAccessDepartmentAsync(User, vm.DepartmentId))
+        return RedirectToAction("AccessDenied", "Auth");
+        
         var dto = new CreateInventoryCheckDto
         {
             DepartmentId = vm.DepartmentId,

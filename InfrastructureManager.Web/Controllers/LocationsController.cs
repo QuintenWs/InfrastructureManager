@@ -14,16 +14,21 @@ public class LocationsController : Controller
     private const int PageSize = 20;
 
     private readonly ILocationService _service;
+    private readonly IUserAccessService  _userAccess;
 
-    public LocationsController(ILocationService service)
+
+    public LocationsController(ILocationService service, IUserAccessService userAccess)
     {
         _service = service;
+        _userAccess = userAccess;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(string? search, int page = 1)
     {
         var paged = await _service.GetPagedAsync(search, page, PageSize);
+        var allowed = await _userAccess.GetAccessibleLocationIdsAsync(User);
+        var paged   = await _service.GetPagedAsync(search, page, PageSize, allowed);
 
         ViewBag.Search = search;
         ViewBag.Pagination = new PaginationViewModel
@@ -50,6 +55,9 @@ public class LocationsController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
+        if (!await _userAccess.CanAccessLocationAsync(User, id))
+        return RedirectToAction("AccessDenied", "Auth");
+        
         var item = await _service.GetDetailsByIdAsync(id);
         if (item == null) return NotFound();
 

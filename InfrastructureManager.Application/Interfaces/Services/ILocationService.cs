@@ -12,4 +12,5 @@ public interface ILocationService
     Task CreateAsync(CreateLocationDto dto);
     Task UpdateAsync(UpdateLocationDto dto);
     Task DeleteAsync(int id);
+    Task<PagedResult<LocationDto>> GetPagedAsync(string? search, int page, int pageSize, IReadOnlyCollection<int>? allowedLocationIds = null);
 }
