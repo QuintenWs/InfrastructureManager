@@ -100,6 +100,37 @@
                         </div>
                     </div>
 
+                    <div class="col-md-6 col-lg-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   name="ShowOverdueVisits" value="true" id="ws6"
+                                   @(s.ShowOverdueVisits ? "checked" : "") />
+                            <input type="hidden" name="ShowOverdueVisits" value="false" />
+                            <label class="form-check-label" for="ws6">Departementen zonder bezoek</label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6 col-lg-3">
+                        <label class="form-label small text-secondary">Aantal recente toestellen</label>
+                        <select name="RecentDevicesCount" class="form-select form-select-sm">
+                            @foreach (var n in new[] { 5, 10, 15, 25 })
+                            {
+                                <option value="@n" selected="@(n == s.RecentDevicesCount)">@n</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <label class="form-label small text-secondary">Aantal activiteiten</label>
+                        <select name="RecentActivityCount" class="form-select form-select-sm">
+                            @foreach (var n in new[] { 5, 10, 20, 50 })
+                            {
+                                <option value="@n" selected="@(n == s.RecentActivityCount)">@n</option>
+                            }
+                        </select>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary custom-btn btn-sm">
@@ -161,7 +192,7 @@
                 <div class="empty-state py-3">
                     <div class="empty-icon"><i class="bi bi-shield-check"></i></div>
                     <div class="empty-title">Niets te melden</div>
-                    <div class="empty-description">Geen vervaldatums binnen 30 dagen.</div>
+                    <div class="empty-description">Geen vervaldatums binnen 100 dagen.</div>
                 </div>
             }
             else
@@ -187,6 +218,46 @@
                                 {
                                     @($"Nog {item.DaysRemaining} dag{(item.DaysRemaining == 1 ? "" : "en")} — {item.ExpiryDate:dd/MM/yyyy}")
                                 }
+                            </span>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+        @if (s.ShowOverdueVisits)
+    {
+        <div class="content-card">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h3>Departementen zonder recent bezoek</h3>
+                @if (Model.OverdueVisits.Any())
+                {
+                    <span class="table-meta">@Model.OverdueVisits.Count() item@(Model.OverdueVisits.Count() == 1 ? "" : "s")</span>
+                }
+            </div>
+            @if (!Model.OverdueVisits.Any())
+            {
+                <div class="empty-state py-3">
+                    <div class="empty-icon"><i class="bi bi-calendar-check"></i></div>
+                    <div class="empty-title">Alles recent bezocht</div>
+                    <div class="empty-description">Geen departement zonder bezoek in de laatste 2 jaar.</div>
+                </div>
+            }
+            else
+            {
+                <div class="expiring-list">
+                    @foreach (var item in Model.OverdueVisits)
+                    {
+                        <a asp-controller="Visits" asp-action="Index" asp-route-departmentId="@item.DepartmentId" class="expiring-item">
+                            <div>
+                                <div class="expiring-item-name">@item.DepartmentName</div>
+                                <div class="expiring-item-meta">@item.LocationName</div>
+                            </div>
+                            <span class="status-badge status-offline">
+                                @(item.LastVisitDate.HasValue
+                                    ? $"Laatste bezoek {item.LastVisitDate.Value:dd/MM/yyyy} — {item.DaysSinceLastVisit} dagen geleden"
+                                    : "Nog nooit bezocht")
                             </span>
                         </a>
                     }
@@ -307,7 +378,6 @@
                                                 }
                                             </tbody>
                                         </table>
-                                                <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
                                     </div>
                                 }
                             </div>

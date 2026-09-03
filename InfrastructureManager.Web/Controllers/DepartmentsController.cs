@@ -32,7 +32,8 @@ public class DepartmentsController : Controller
         INetworkService        networkService,
         IFileService           fileService,
         IVisitService          visitService,
-        IInventoryCheckService checkService)
+        IInventoryCheckService checkService,
+        IDepartmentDocumentService departmentDocumentService)
     {
         _service         = service;
         _locationService = locationService;

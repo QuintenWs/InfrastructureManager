@@ -18,4 +18,6 @@ public class Department : BaseEntity
     public ICollection<SiteVisit>       Visits          { get; set; } = new List<SiteVisit>();
     public ICollection<ActionItem>      ActionItems     { get; set; } = new List<ActionItem>();
     public ICollection<InventoryCheck>  InventoryChecks { get; set; } = new List<InventoryCheck>();
+
+    public ICollection<DepartmentDocument> Documents { get; set; } = new List<DepartmentDocument>();
 }

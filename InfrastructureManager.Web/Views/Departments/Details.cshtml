@@ -73,6 +73,62 @@
     </div>
 </div>
 
+<div class="content-card mt-4">
+    <div class="details-section-title"><i class="bi bi-diagram-2 me-1"></i> Bekabelingsplan</div>
+
+    @if (!Model.CablingPlans.Any())
+    {
+        <div class="empty-notes mb-3">Nog geen bekabelingsplan geüpload.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2 mb-3">
+            @foreach (var doc in Model.CablingPlans)
+            {
+                <div class="d-flex justify-content-between align-items-center p-2"
+                     style="border:1px solid var(--color-border);border-radius:var(--radius-md)">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-file-earmark-richtext text-secondary"></i>
+                        <div>
+                            <a asp-action="Document" asp-route-id="@doc.Id" class="table-link fw-semibold">@doc.FileName</a>
+                            @if (!string.IsNullOrWhiteSpace(doc.Caption))
+                            {
+                                <div class="text-secondary small">@doc.Caption</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-secondary small">@doc.CreatedAt.ToString("dd/MM/yyyy")</span>
+                        @if (User.IsInRole(AppRoles.Admin))
+                        {
+                            <form asp-action="DeleteDocument" method="post" onsubmit="return confirm('Bekabelingsplan @doc.FileName verwijderen?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="documentId" value="@doc.Id" />
+                                <input type="hidden" name="departmentId" value="@Model.Id" />
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (User.IsInRole(AppRoles.Admin))
+    {
+        <form asp-action="UploadCablingPlan" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="departmentId" value="@Model.Id" />
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6"><input type="file" name="files" accept=".vsdx,.vsd,.pdf" multiple class="form-control" /></div>
+                <div class="col-md-4"><input type="text" name="caption" class="form-control" placeholder="Omschrijving (optioneel)" maxlength="200" /></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-primary custom-btn w-100"><i class="bi bi-upload"></i> Upload</button></div>
+            </div>
+            <div class="text-secondary small mt-1">Enkel Visio (.vsdx/.vsd) of PDF — max. 25 MB per bestand.</div>
+        </form>
+    }
+</div>
+
 <div class="details-grid">
     <div class="details-main">
 

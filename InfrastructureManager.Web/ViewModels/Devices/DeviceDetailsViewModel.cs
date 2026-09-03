@@ -15,6 +15,7 @@ public class DeviceDetailsViewModel
     public DeviceType   DeviceType { get; set; }
     public DeviceStatus Status     { get; set; }
     public string? Notes { get; set; }
+    public IEnumerable<DeviceDocumentDto> Documents { get; set; } = new List<DeviceDocumentDto>();
 
     /// <summary>Only fields that have a value.</summary>
     public IReadOnlyList<DeviceTypeFieldDto> TypeFields { get; set; }

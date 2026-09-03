@@ -10,6 +10,9 @@ public class UserDashboardSettings
     public bool ShowRecentDevices  { get; set; } = true;
     public bool ShowRecentActivity { get; set; } = true;
     public bool ShowExpiringItems  { get; set; } = true;
+    public bool ShowOverdueVisits    { get; set; } = true;
+    public int  RecentDevicesCount   { get; set; } = 5;
+    public int  RecentActivityCount  { get; set; } = 10;    
 
     /// <summary>If set, dashboard stats are filtered to this location.</summary>
     public int? DefaultLocationId { get; set; }

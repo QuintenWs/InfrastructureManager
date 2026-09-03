@@ -1,4 +1,5 @@
 using InfrastructureManager.Domain.Enums;
+using InfrastructureManager.Application.Interfaces.Services;
 
 namespace InfrastructureManager.Web.ViewModels.Departments;
 
@@ -12,6 +13,7 @@ public class DepartmentDetailsViewModel
     public int     LocationId   { get; set; }
     public string  LocationName { get; set; } = string.Empty;
     public DateTime CreatedAt   { get; set; }
+    public IEnumerable<DepartmentDocumentDto> CablingPlans { get; set; } = new List<DepartmentDocumentDto>();
 
     /// <summary>Open + in-progress action items for this department — see Visits.</summary>
     public int OpenActionItemCount { get; set; }

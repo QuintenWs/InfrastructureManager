@@ -11,31 +11,38 @@ public class DashboardService : IDashboardService
 {
     private readonly AppDbContext _context;
 
-    /// <summary>How many days ahead of today an item is shown as "expiring soon".
-    /// Already-expired items are always shown regardless of this window.</summary>
-    private const int ExpiryWarningWindowDays = 30;
+    private const int ExpiryWarningWindowDays = 100;
+    private const int OverdueVisitWarningDays = 730; // 2 jaar
 
     public DashboardService(AppDbContext context)
     {
         _context = context;
     }
 
-    public async Task<DashboardDto> GetDashboardAsync(int? locationId = null)
+    public async Task<DashboardDto> GetDashboardAsync(
+        int? locationId = null,
+        IReadOnlyCollection<int>? allowedLocationIds = null,
+        int recentDevicesCount = 5,
+        int recentActivityCount = 10)
     {
-        // All queries filter by locationId when provided
-        var deptQuery   = _context.Departments.AsQueryable();
-        var networkQuery= _context.Networks.AsQueryable();
-        var deviceQuery = _context.Devices.AsQueryable();
+        List<int>? effectiveIds = allowedLocationIds?.ToList();
 
-        if (locationId.HasValue)
+        if (locationId.HasValue && (effectiveIds == null || effectiveIds.Contains(locationId.Value)))
+            effectiveIds = new List<int> { locationId.Value };
+
+        var deptQuery    = _context.Departments.AsQueryable();
+        var networkQuery = _context.Networks.AsQueryable();
+        var deviceQuery  = _context.Devices.AsQueryable();
+
+        if (effectiveIds != null)
         {
-            deptQuery    = deptQuery.Where(x => x.LocationId == locationId.Value);
-            networkQuery = networkQuery.Where(x => x.LocationId == locationId.Value);
-            deviceQuery  = deviceQuery.Where(x => x.LocationId == locationId.Value);
+            deptQuery    = deptQuery.Where(x => effectiveIds.Contains(x.LocationId));
+            networkQuery = networkQuery.Where(x => effectiveIds.Contains(x.LocationId));
+            deviceQuery  = deviceQuery.Where(x => effectiveIds.Contains(x.LocationId));
         }
 
         var totalDepartments   = await deptQuery.CountAsync();
-        var totalLocations     = locationId.HasValue ? 1 : await _context.Locations.CountAsync();
+        var totalLocations     = effectiveIds != null ? effectiveIds.Count : await _context.Locations.CountAsync();
         var totalNetworks      = await networkQuery.CountAsync();
         var totalDevices       = await deviceQuery.CountAsync();
         var activeDevices      = await deviceQuery.CountAsync(x => x.Status == DeviceStatus.Active);
@@ -46,38 +53,27 @@ public class DashboardService : IDashboardService
         var recentDevices = await deviceQuery
             .Include(x => x.Location)
             .OrderByDescending(x => x.CreatedAt)
-            .Take(5)
+            .Take(recentDevicesCount)
             .Select(x => new RecentDeviceDto
             {
-                Id           = x.Id,
-                Name         = x.Name,
-                DeviceType   = x.DeviceType.ToString(),
-                Status       = x.Status.ToString(),
-                LocationName = x.Location.Name
+                Id = x.Id, Name = x.Name, DeviceType = x.DeviceType.ToString(),
+                Status = x.Status.ToString(), LocationName = x.Location.Name
             })
             .ToListAsync();
 
-        // Activity feed always global — per-location filtering would hide cross-location changes
+        // Blijft globaal — AuditLog houdt geen LocationId bij.
         var rawLogs = await _context.AuditLogs
             .OrderByDescending(x => x.CreatedAt)
-            .Take(10)
+            .Take(recentActivityCount)
             .ToListAsync();
 
         var recentActivity = rawLogs.Select(x => new AuditLogDto
         {
-            Id              = x.Id,
-            UserDisplayName = x.UserDisplayName,
-            Action          = x.Action,
-            EntityType      = x.EntityType,
-            EntityId        = x.EntityId,
-            EntityLabel     = x.EntityLabel,
-            OldValues       = x.OldValues,
-            NewValues       = x.NewValues,
-            CreatedAt       = x.CreatedAt,
-            Changes         = AuditChangeFormatter.ParseChanges(x.OldValues, x.NewValues)
+            Id = x.Id, UserDisplayName = x.UserDisplayName, Action = x.Action,
+            EntityType = x.EntityType, EntityId = x.EntityId, EntityLabel = x.EntityLabel,
+            OldValues = x.OldValues, NewValues = x.NewValues, CreatedAt = x.CreatedAt,
+            Changes = AuditChangeFormatter.ParseChanges(x.OldValues, x.NewValues)
         }).ToList();
-
-        var expiringItems = await GetExpiringItemsAsync(locationId);
 
         return new DashboardDto
         {
@@ -91,36 +87,24 @@ public class DashboardService : IDashboardService
             RetiredDevices     = retiredDevices,
             RecentDevices      = recentDevices,
             RecentActivity     = recentActivity,
-            ExpiringItems      = expiringItems
+            ExpiringItems      = await GetExpiringItemsAsync(effectiveIds),
+            OverdueVisits      = await GetOverdueVisitsAsync(effectiveIds)
         };
     }
 
-    /// <summary>
-    /// Generic across any device type: picks up every DeviceFieldValue whose
-    /// field is a date field marked AlertOnExpiry (e.g. a crypto key's expiry
-    /// date), and returns the ones already expired or expiring within
-    /// ExpiryWarningWindowDays. Values are stored as free-text strings, so
-    /// parsing happens in memory after a narrow, indexed-friendly filter.
-    /// </summary>
-    private async Task<List<ExpiringItemDto>> GetExpiringItemsAsync(int? locationId)
+    private async Task<List<ExpiringItemDto>> GetExpiringItemsAsync(List<int>? locationIds)
     {
         var candidatesQuery = _context.DeviceFieldValues
-            .Where(v => v.Field.AlertOnExpiry
-                     && v.Field.FieldType == "date"
-                     && v.Value != "");
+            .Where(v => v.Field.AlertOnExpiry && v.Field.FieldType == "date" && v.Value != "");
 
-        if (locationId.HasValue)
-            candidatesQuery = candidatesQuery.Where(v => v.Device.LocationId == locationId.Value);
+        if (locationIds != null)
+            candidatesQuery = candidatesQuery.Where(v => locationIds.Contains(v.Device.LocationId));
 
         var candidates = await candidatesQuery
             .Select(v => new
             {
-                v.Value,
-                FieldLabel     = v.Field.Label,
-                DeviceId       = v.Device.Id,
-                DeviceName     = v.Device.Name,
-                DepartmentName = v.Device.Department.Name,
-                LocationName   = v.Device.Location.Name
+                v.Value, FieldLabel = v.Field.Label, DeviceId = v.Device.Id, DeviceName = v.Device.Name,
+                DepartmentName = v.Device.Department.Name, LocationName = v.Device.Location.Name
             })
             .ToListAsync();
 
@@ -131,17 +115,42 @@ public class DashboardService : IDashboardService
             .Where(x => x.Parsed.HasValue)
             .Select(x => new ExpiringItemDto
             {
-                DeviceId       = x.c.DeviceId,
-                DeviceName     = x.c.DeviceName,
-                DepartmentName = x.c.DepartmentName,
-                LocationName   = x.c.LocationName,
-                FieldLabel     = x.c.FieldLabel,
-                ExpiryDate     = x.Parsed!.Value,
-                DaysRemaining  = (x.Parsed.Value - today).Days
+                DeviceId = x.c.DeviceId, DeviceName = x.c.DeviceName, DepartmentName = x.c.DepartmentName,
+                LocationName = x.c.LocationName, FieldLabel = x.c.FieldLabel,
+                ExpiryDate = x.Parsed!.Value, DaysRemaining = (x.Parsed.Value - today).Days
             })
             .Where(i => i.DaysRemaining <= ExpiryWarningWindowDays)
             .OrderBy(i => i.ExpiryDate)
             .Take(10)
+            .ToList();
+    }
+
+    /// <summary>Departementen zonder bezoek, of waarvan het laatste bezoek meer dan 2 jaar geleden is.</summary>
+    private async Task<List<OverdueVisitDto>> GetOverdueVisitsAsync(List<int>? locationIds)
+    {
+        var query = _context.Departments.Include(d => d.Location).AsQueryable();
+        if (locationIds != null)
+            query = query.Where(d => locationIds.Contains(d.LocationId));
+
+        var raw = await query
+            .Select(d => new
+            {
+                d.Id, d.Name, LocationName = d.Location.Name,
+                LastVisit = d.Visits.OrderByDescending(v => v.VisitDate).Select(v => (DateTime?)v.VisitDate).FirstOrDefault()
+            })
+            .ToListAsync();
+
+        var today = DateTime.UtcNow.Date;
+
+        return raw
+            .Select(d => new { d, Days = d.LastVisit.HasValue ? (int?)(today - d.LastVisit.Value.Date).Days : null })
+            .Where(x => x.Days == null || x.Days >= OverdueVisitWarningDays)
+            .OrderByDescending(x => x.Days ?? int.MaxValue)
+            .Select(x => new OverdueVisitDto
+            {
+                DepartmentId = x.d.Id, DepartmentName = x.d.Name, LocationName = x.d.LocationName,
+                LastVisitDate = x.d.LastVisit, DaysSinceLastVisit = x.Days ?? int.MaxValue
+            })
             .ToList();
     }
 }

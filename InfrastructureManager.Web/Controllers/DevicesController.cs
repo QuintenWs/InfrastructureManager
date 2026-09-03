@@ -27,13 +27,15 @@ public class DevicesController : Controller
         IDepartmentService     departmentService,
         INetworkService        networkService,
         IDeviceTypeService     deviceTypeService,
-        IMaintenanceLogService maintenanceLogService)
+        IMaintenanceLogService maintenanceLogService,
+        IDeviceDocumentService deviceDocumentService)
     {
         _deviceService         = deviceService;
         _departmentService     = departmentService;
         _networkService        = networkService;
         _deviceTypeService     = deviceTypeService;
         _maintenanceLogService = maintenanceLogService;
+        _deviceDocumentService = deviceDocumentService;
     }
 
     [HttpGet]
@@ -99,28 +101,63 @@ public class DevicesController : Controller
     {
         var item = await _deviceService.GetByIdAsync(id);
         if (item == null) return NotFound();
+        if (!await _userAccess.CanAccessDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
 
         var typeFields      = await _deviceTypeService.GetFieldsAsync(item.DeviceType, id);
         var maintenanceLogs = await _maintenanceLogService.GetByDeviceAsync(id);
+        var documents       = await _documentService.GetByDeviceAsync(id);
 
         var vm = new DeviceDetailsViewModel
         {
-            Id             = item.Id,
-            DepartmentId   = item.DepartmentId,
-            DepartmentName = item.DepartmentName,
-            LocationName   = item.LocationName,
-            NetworkName    = item.NetworkName,
-            Name           = item.Name,
-            DeviceType     = item.DeviceType,
-            Status         = item.Status,
-            Notes          = item.Notes,
-            TypeFields     = typeFields?.Fields
-                             .Where(f => !string.IsNullOrWhiteSpace(f.CurrentValue))
-                             .ToList() ?? new List<DeviceTypeFieldDto>(),
-            MaintenanceLogs = maintenanceLogs.ToList()
+            Id = item.Id, DepartmentId = item.DepartmentId, DepartmentName = item.DepartmentName,
+            LocationName = item.LocationName, NetworkName = item.NetworkName, Name = item.Name,
+            DeviceType = item.DeviceType, Status = item.Status, Notes = item.Notes,
+            TypeFields = typeFields?.Fields.Where(f => !string.IsNullOrWhiteSpace(f.CurrentValue)).ToList() ?? new(),
+            MaintenanceLogs = maintenanceLogs.ToList(),
+            Documents = documents.ToList()
         };
 
         return View(vm);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Document(int id)
+    {
+        var result = await _documentService.GetAsync(id);
+        if (result == null) return NotFound();
+        var (data, contentType, fileName) = result.Value;
+        return File(data, contentType, fileName);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadDocument(int deviceId, string? caption)
+    {
+        var files = Request.Form.Files;
+        if (files == null || files.Count == 0)
+        {
+            TempData["Error"] = "Selecteer minstens één document om te uploaden.";
+            return RedirectToAction(nameof(Details), new { id = deviceId });
+        }
+
+        var results = await _documentService.UploadAsync(deviceId, files, caption);
+        var failed  = results.Where(r => !r.Success).ToList();
+        TempData[failed.Any() ? "Error" : "Success"] = failed.Any()
+            ? string.Join(", ", failed.Select(f => f.Error))
+            : $"{results.Count(r => r.Success)} document(en) geüpload.";
+
+        return RedirectToAction(nameof(Details), new { id = deviceId });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> DeleteDocument(int documentId, int deviceId)
+    {
+        await _documentService.DeleteAsync(documentId);
+        TempData["Success"] = "Document verwijderd.";
+        return RedirectToAction(nameof(Details), new { id = deviceId });
     }
 
     [HttpGet]

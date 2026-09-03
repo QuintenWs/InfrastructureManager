@@ -26,6 +26,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ActionItem>            ActionItems           => Set<ActionItem>();
     public DbSet<InventoryCheck>        InventoryChecks       => Set<InventoryCheck>();
     public DbSet<InventoryCheckItem>    InventoryCheckItems   => Set<InventoryCheckItem>();
+    public DbSet<DeviceDocument>        DeviceDocuments       => Set<DeviceDocument>();
+    public DbSet<DepartmentDocument>    DepartmentDocuments   => Set<DepartmentDocument>();
+    public DbSet<UserLocationAccess>    UserLocationAccess    => Set<UserLocationAccess>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -214,6 +217,34 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             // Cascade) must not also cascade/setnull at the DB level.
             entity.HasOne(x => x.Device).WithMany()
                 .HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        builder.Entity<DeviceDocument>(entity =>
+        {
+            entity.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.FileData).HasColumnType("varbinary(max)").IsRequired();
+            entity.Property(x => x.Caption).HasMaxLength(500);
+            entity.HasOne(x => x.Device).WithMany(x => x.Documents)
+                .HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DepartmentDocument>(entity =>
+        {
+            entity.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(150).IsRequired();
+            entity.Property(x => x.FileData).HasColumnType("varbinary(max)").IsRequired();
+            entity.Property(x => x.Caption).HasMaxLength(500);
+            entity.HasOne(x => x.Department).WithMany(x => x.Documents)
+                .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<UserLocationAccess>(entity =>
+        {
+            entity.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+            entity.HasIndex(x => new { x.UserId, x.LocationId }).IsUnique();
+            entity.HasOne(x => x.Location).WithMany()
+                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

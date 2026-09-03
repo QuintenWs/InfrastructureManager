@@ -21,6 +21,8 @@ public class Device : BaseEntity
 
     public string? Notes { get; set; }
 
+    public ICollection<DeviceDocument> Documents { get; set; } = new List<DeviceDocument>();
+
     // All type-specific properties (IP, MAC, hostname, vendor, etc.)
     // are stored here as DeviceFieldValues
     public ICollection<DeviceFieldValue>  FieldValues     { get; set; } = new List<DeviceFieldValue>();
