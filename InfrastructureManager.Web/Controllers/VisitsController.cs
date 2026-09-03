@@ -17,23 +17,23 @@ public class VisitsController : Controller
     private readonly IVisitService      _visitService;
     private readonly IDepartmentService _departmentService;
     private const int PageSize = 20;
-    private readonly IUserAccessService  _userAccess;
+    private readonly IUserAccessService  _userAccessService;
 
 
     public VisitsController(
         IVisitService      visitService,
         IDepartmentService departmentService,
-        IUserAccessService userAccess)
+        IUserAccessService userAccessService)
     {
         _visitService      = visitService;
         _departmentService = departmentService;
-        _userAccess        = userAccess;
+        _userAccessService       = userAccessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(int? departmentId, int page = 1)
     {
-        if (departmentId.HasValue && !await _userAccess.CanAccessDepartmentAsync(User, departmentId.Value))
+        if (departmentId.HasValue && !await _userAccessService.CanAccessDepartmentAsync(User, departmentId.Value))
         return RedirectToAction("AccessDenied", "Auth");
 
         var departments = await GetDepartmentsAsync();
@@ -80,7 +80,7 @@ public class VisitsController : Controller
     [HttpGet]
     public async Task<IActionResult> Create(int departmentId)
     {
-        if (!await _userAccess.CanAccessDepartmentAsync(User, departmentId))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, departmentId))
         return RedirectToAction("AccessDenied", "Auth");
 
         var dept = await _departmentService.GetByIdAsync(departmentId);
@@ -109,7 +109,7 @@ public class VisitsController : Controller
     [HttpPost]
     public async Task<IActionResult> Create(CreateVisitViewModel vm)
     {
-        if (!await _userAccess.CanAccessDepartmentAsync(User, vm.DepartmentId))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, vm.DepartmentId))
         return RedirectToAction("AccessDenied", "Auth");
         
         var dto = new CreateSiteVisitDto

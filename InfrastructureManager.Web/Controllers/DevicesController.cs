@@ -21,7 +21,8 @@ public class DevicesController : Controller
     private readonly INetworkService         _networkService;
     private readonly IDeviceTypeService      _deviceTypeService;
     private readonly IMaintenanceLogService  _maintenanceLogService;
-    private readonly IUserAccessService      _userAccess;
+    private readonly IDeviceDocumentService  _deviceDocumentService;
+    private readonly IUserAccessService      _userAccessService;
 
     public DevicesController(
         IDeviceService         deviceService,
@@ -46,7 +47,7 @@ public class DevicesController : Controller
         string? search, DeviceType? deviceType,
         DeviceStatus? status, int? locationId, int? departmentId, int page = 1)
     {
-        var allowed = await _userAccess.GetAccessibleLocationIdsAsync(User);
+        var allowed = await _userAccessService.GetAccessibleLocationIdsAsync(User);
         var filter = new DeviceFilter
         {
             Search       = search,
@@ -106,12 +107,12 @@ public class DevicesController : Controller
     {
         var item = await _deviceService.GetByIdAsync(id);
         if (item == null) return NotFound();
-        if (!await _userAccess.CanAccessDepartmentAsync(User, item.DepartmentId))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, item.DepartmentId))
             return RedirectToAction("AccessDenied", "Auth");
 
         var typeFields      = await _deviceTypeService.GetFieldsAsync(item.DeviceType, id);
         var maintenanceLogs = await _maintenanceLogService.GetByDeviceAsync(id);
-        var documents       = await _documentService.GetByDeviceAsync(id);
+        var documents       = await _deviceDocumentService.GetByDeviceAsync(id);
 
         var vm = new DeviceDetailsViewModel
         {
@@ -129,7 +130,7 @@ public class DevicesController : Controller
     [HttpGet]
     public async Task<IActionResult> Document(int id)
     {
-        var result = await _documentService.GetAsync(id);
+        var result = await _deviceDocumentService.GetAsync(id);
         if (result == null) return NotFound();
         var (data, contentType, fileName) = result.Value;
         return File(data, contentType, fileName);
@@ -147,7 +148,7 @@ public class DevicesController : Controller
             return RedirectToAction(nameof(Details), new { id = deviceId });
         }
 
-        var results = await _documentService.UploadAsync(deviceId, files, caption);
+        var results = await _deviceDocumentService.UploadAsync(deviceId, files, caption);
         var failed  = results.Where(r => !r.Success).ToList();
         TempData[failed.Any() ? "Error" : "Success"] = failed.Any()
             ? string.Join(", ", failed.Select(f => f.Error))
@@ -160,7 +161,7 @@ public class DevicesController : Controller
     [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> DeleteDocument(int documentId, int deviceId)
     {
-        await _documentService.DeleteAsync(documentId);
+        await _deviceDocumentService.DeleteAsync(documentId);
         TempData["Success"] = "Document verwijderd.";
         return RedirectToAction(nameof(Details), new { id = deviceId });
     }

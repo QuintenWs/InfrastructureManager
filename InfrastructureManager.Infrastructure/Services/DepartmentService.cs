@@ -30,13 +30,20 @@ public class DepartmentService : IDepartmentService
         return items.Select(ToDto);
     }
 
-    public async Task<PagedResult<DepartmentDto>> GetPagedAsync(string? search, int page, int pageSize)
+    public async Task<PagedResult<DepartmentDto>> GetPagedAsync(
+        string? search,
+        int page,
+        int pageSize,
+        IReadOnlyCollection<int>? allowedLocationIds)
     {
-        var query = _context.Departments.Include(d => d.Location).AsQueryable();
+        var query = _context.Departments
+            .Include(d => d.Location)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim().ToLower();
+
             query = query.Where(d =>
                 d.Name.ToLower().Contains(s) ||
                 d.Location.Name.ToLower().Contains(s) ||
@@ -44,12 +51,16 @@ public class DepartmentService : IDepartmentService
         }
 
         if (allowedLocationIds != null)
-            query = query.Where(d => allowedLocationIds.Contains(d.LocationId));
+        {
+            query = query.Where(d =>
+                allowedLocationIds.Contains(d.LocationId));
+        }
 
         var totalCount = await query.CountAsync();
 
         var items = await query
-            .OrderBy(d => d.Location.Name).ThenBy(d => d.Name)
+            .OrderBy(d => d.Location.Name)
+            .ThenBy(d => d.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(x => new DepartmentDto
@@ -65,7 +76,13 @@ public class DepartmentService : IDepartmentService
             })
             .ToListAsync();
 
-        return new PagedResult<DepartmentDto> { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
+        return new PagedResult<DepartmentDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<IEnumerable<DepartmentDto>> GetByLocationAsync(int locationId)

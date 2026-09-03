@@ -23,6 +23,7 @@ public class DepartmentsController : Controller
     private readonly IFileService           _fileService;
     private readonly IVisitService          _visitService;
     private readonly IInventoryCheckService _checkService;
+    private readonly IUserAccessService     _userAccessService;
 
     public DepartmentsController(
         IDepartmentService     service,
@@ -33,7 +34,8 @@ public class DepartmentsController : Controller
         IFileService           fileService,
         IVisitService          visitService,
         IInventoryCheckService checkService,
-        IDepartmentDocumentService departmentDocumentService)
+        IDepartmentDocumentService departmentDocumentService,
+        IUserAccessService     userAccessService)
     {
         _service         = service;
         _locationService = locationService;
@@ -43,12 +45,13 @@ public class DepartmentsController : Controller
         _fileService     = fileService;
         _visitService    = visitService;
         _checkService    = checkService;
+        _userAccessService  = userAccessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(string? search, int page = 1)
     {
-        var allowed = await _userAccess.GetAccessibleLocationIdsAsync(User);
+        var allowed = await _userAccessService.GetAccessibleLocationIdsAsync(User);
         var paged      = await _service.GetPagedAsync(search, page, PageSize, allowed);
         var openCounts = await _visitService.GetOpenActionItemCountsAsync();
 
@@ -76,7 +79,7 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
-        if (!await _userAccess.CanAccessDepartmentAsync(User, id))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, id))
         return RedirectToAction("AccessDenied", "Auth");
 
         var item = await _service.GetByIdAsync(id);
@@ -143,7 +146,7 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> Report(int id)
     {
-        if (!await _userAccess.CanAccessDepartmentAsync(User, id))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, id))
         return RedirectToAction("AccessDenied", "Auth");
 
         var report = await _service.GetReportAsync(id);
@@ -156,7 +159,7 @@ public class DepartmentsController : Controller
     [HttpGet]
     public async Task<IActionResult> ChecklistPrint(int id)
     {
-        if (!await _userAccess.CanAccessDepartmentAsync(User, id))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, id))
         return RedirectToAction("AccessDenied", "Auth");
         
         var report = await _service.GetReportAsync(id);

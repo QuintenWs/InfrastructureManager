@@ -14,20 +14,20 @@ public class TopologyController : Controller
 {
     private readonly ITopologyService    _topologyService;
     private readonly AppDbContext        _context;
-    private readonly IUserAccessService  _userAccess;
+    private readonly IUserAccessService  _userAccessService;
 
 
-    public TopologyController(ITopologyService topologyService, AppDbContext context, IUserAccessService userAccess)
+    public TopologyController(ITopologyService topologyService, AppDbContext context, IUserAccessService userAccessService)
     {
         _topologyService = topologyService;
         _context         = context;
-        _userAccess        = userAccess;
+        _userAccessService       = userAccessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(int? departmentId)
     {
-        if (departmentId.HasValue && !await _userAccess.CanAccessDepartmentAsync(User, departmentId.Value))
+        if (departmentId.HasValue && !await _userAccessService.CanAccessDepartmentAsync(User, departmentId.Value))
         return RedirectToAction("AccessDenied", "Auth");
 
         var departments = await _context.Departments
@@ -53,7 +53,7 @@ public class TopologyController : Controller
     [HttpGet]
     public async Task<IActionResult> Data(int departmentId)
     {
-        if (!await _userAccess.CanAccessDepartmentAsync(User, departmentId))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, departmentId))
         return Forbid();
         
         var topology = await _topologyService.GetByDepartmentAsync(departmentId);

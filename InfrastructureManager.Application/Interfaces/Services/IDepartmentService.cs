@@ -6,7 +6,6 @@ namespace InfrastructureManager.Application.Interfaces.Services;
 public interface IDepartmentService
 {
     Task<IEnumerable<DepartmentDto>> GetAllAsync(string? search = null);
-    Task<PagedResult<DepartmentDto>> GetPagedAsync(string? search, int page, int pageSize);
     Task<IEnumerable<DepartmentDto>> GetByLocationAsync(int locationId);
     Task<DepartmentDto?>             GetByIdAsync(int id);
     Task<DepartmentReportDto?>       GetReportAsync(int id);

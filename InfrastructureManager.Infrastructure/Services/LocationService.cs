@@ -41,13 +41,18 @@ public class LocationService : ILocationService
         });
     }
 
-    public async Task<PagedResult<LocationDto>> GetPagedAsync(string? search, int page, int pageSize)
+    public async Task<PagedResult<LocationDto>> GetPagedAsync(
+        string? search,
+        int page,
+        int pageSize,
+        IReadOnlyCollection<int>? allowedLocationIds)
     {
         var query = _context.Locations.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim().ToLower();
+
             query = query.Where(l =>
                 l.Name.ToLower().Contains(s) ||
                 l.City.ToLower().Contains(s) ||
@@ -55,7 +60,10 @@ public class LocationService : ILocationService
         }
 
         if (allowedLocationIds != null)
-            query = query.Where(l => allowedLocationIds.Contains(l.Id));
+        {
+            query = query.Where(l =>
+                allowedLocationIds.Contains(l.Id));
+        }
 
         var totalCount = await query.CountAsync();
 
@@ -69,7 +77,7 @@ public class LocationService : ILocationService
                 Name            = l.Name,
                 City            = l.City,
                 Country         = l.Country,
-                Notes           = l.Notes,
+                Notes            = l.Notes,
                 CreatedAt       = l.CreatedAt,
                 DepartmentCount = l.Departments.Count,
                 NetworkCount    = l.Networks.Count,
@@ -77,7 +85,13 @@ public class LocationService : ILocationService
             })
             .ToListAsync();
 
-        return new PagedResult<LocationDto> { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
+        return new PagedResult<LocationDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<LocationDto?> GetByIdAsync(int id)

@@ -17,13 +17,13 @@ public class NetworksController : Controller
     private readonly INetworkService    _networkService;
     private readonly IDepartmentService _departmentService;
     private const int PageSize = 20;
-    private readonly IUserAccessService _userAccess;
+    private readonly IUserAccessService _userAccessService;
 
 
     public NetworksController(
         INetworkService    networkService,
         IDepartmentService departmentService,
-        IUserAccessService     userAccessService)
+        IUserAccessService userAccessService)
     {
         _networkService    = networkService;
         _departmentService = departmentService;
@@ -37,7 +37,7 @@ public class NetworksController : Controller
         bool? isInternetAccessible, int? departmentId,
         int? vlanId, string? ispName, int page = 1)
     {
-        var allowed = await _userAccess.GetAccessibleLocationIdsAsync(User);
+        var allowed = await _userAccessService.GetAccessibleLocationIdsAsync(User);
         var filter = new NetworkFilter
         {
             Search               = search,
@@ -102,7 +102,7 @@ public class NetworksController : Controller
     {
         var item = await _networkService.GetByIdAsync(id);
         if (item == null) return NotFound();
-        if (!await _userAccess.CanAccessDepartmentAsync(User, item.DepartmentId))
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, item.DepartmentId))
             return RedirectToAction("AccessDenied", "Auth");
 
         var vm = new NetworkDetailsViewModel

@@ -14,6 +14,8 @@ public class DashboardDto
     public IEnumerable<RecentDeviceDto>  RecentDevices  { get; set; } = new List<RecentDeviceDto>();
     public IEnumerable<AuditLogDto>      RecentActivity { get; set; } = new List<AuditLogDto>();
     public IEnumerable<ExpiringItemDto>  ExpiringItems  { get; set; } = new List<ExpiringItemDto>();
+    public IEnumerable<OverdueVisitDto> OverdueVisits { get; set; } = new List<OverdueVisitDto>();
+
 }
 
 /// <summary>
@@ -29,7 +31,6 @@ public class ExpiringItemDto
     public string   LocationName   { get; set; } = string.Empty;
     public string   FieldLabel     { get; set; } = string.Empty;
     public DateTime ExpiryDate     { get; set; }
-    public IEnumerable<OverdueVisitDto> OverdueVisits { get; set; } = new List<OverdueVisitDto>();
 
     /// <summary>Negative when already expired.</summary>
     public int DaysRemaining { get; set; }

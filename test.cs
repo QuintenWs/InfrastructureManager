@@ -1,0 +1,23 @@
+@model InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel
+
+@if (Model.TotalPages > 1)
+{
+    <div class="d-flex justify-content-between align-items-center mt-3 pt-3"
+         style="border-top:1px solid var(--color-border)">
+        <div class="text-secondary small">
+            @Model.TotalCount resultaten &nbsp;·&nbsp; pagina @Model.CurrentPage van @Model.TotalPages
+        </div>
+        <div class="d-flex gap-2">
+            @if (Model.CurrentPage > 1)
+            {
+                var prev = new Dictionary<string, string>(Model.RouteValues) { ["page"] = (Model.CurrentPage - 1).ToString() };
+                <a asp-action="@Model.Action" asp-all-route-data="prev" class="btn btn-sm btn-light">← Vorige</a>
+            }
+            @if (Model.CurrentPage < Model.TotalPages)
+            {
+                var next = new Dictionary<string, string>(Model.RouteValues) { ["page"] = (Model.CurrentPage + 1).ToString() };
+                <a asp-action="@Model.Action" asp-all-route-data="next" class="btn btn-sm btn-light">Volgende →</a>
+            }
+        </div>
+    </div>
+}
