@@ -2,6 +2,9 @@ using InfrastructureManager.Application.DTOs.Contacts;
 using InfrastructureManager.Application.Interfaces.Repositories;
 using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Domain.Entities;
+using InfrastructureManager.Application.Common;
+using InfrastructureManager.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace InfrastructureManager.Infrastructure.Services;
 
@@ -9,11 +12,59 @@ public class ContactService : IContactService
 {
     private readonly IContactRepository _repository;
     private readonly IAuditService      _audit;
+    private readonly AppDbContext       _context;
 
-    public ContactService(IContactRepository repository, IAuditService audit)
+    public ContactService(IContactRepository repository, IAuditService audit, AppDbContext context)
     {
         _repository = repository;
         _audit      = audit;
+        _context    = context;
+    }
+
+    public async Task<PagedResult<ContactDto>> GetPagedAsync(string? search, int? departmentId, int page, int pageSize)
+    {
+        var query = _context.Contacts
+            .Include(x => x.Department).ThenInclude(d => d.Location)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            query = query.Where(x =>
+                x.FirstName.ToLower().Contains(s) ||
+                x.LastName.ToLower().Contains(s)  ||
+                x.Email.ToLower().Contains(s)     ||
+                (x.Role != null && x.Role.ToLower().Contains(s)) ||
+                x.Department.Name.ToLower().Contains(s)          ||
+                x.Department.Location.Name.ToLower().Contains(s));
+        }
+
+        if (departmentId.HasValue)
+            query = query.Where(x => x.DepartmentId == departmentId.Value);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderBy(x => x.LastName).ThenBy(x => x.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new ContactDto
+            {
+                Id             = x.Id,
+                DepartmentId   = x.DepartmentId,
+                DepartmentName = x.Department.Name,
+                LocationName   = x.Department.Location.Name,
+                FirstName      = x.FirstName,
+                LastName       = x.LastName,
+                Email          = x.Email,
+                Phone          = x.Phone,
+                Role           = x.Role,
+                Notes          = x.Notes,
+                CreatedAt      = x.CreatedAt
+            })
+            .ToListAsync();
+
+        return new PagedResult<ContactDto> { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
     }
 
     public async Task<IEnumerable<ContactDto>> GetAllAsync(string? search = null)

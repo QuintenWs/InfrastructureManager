@@ -4,6 +4,7 @@ using InfrastructureManager.Web.ViewModels.Visits;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -15,6 +16,7 @@ public class VisitsController : Controller
 {
     private readonly IVisitService      _visitService;
     private readonly IDepartmentService _departmentService;
+    private const int PageSize = 20;
 
     public VisitsController(
         IVisitService      visitService,
@@ -25,7 +27,7 @@ public class VisitsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(int? departmentId)
+    public async Task<IActionResult> Index(int? departmentId, int page = 1)
     {
         var departments = await GetDepartmentsAsync();
 
@@ -38,12 +40,31 @@ public class VisitsController : Controller
         if (departmentId.HasValue)
         {
             vm.DepartmentLabel = departments.FirstOrDefault(d => d.Value == departmentId.Value.ToString())?.Text;
-            vm.Visits          = (await _visitService.GetVisitsByDepartmentAsync(departmentId.Value)).ToList();
-            vm.OpenItems       = (await _visitService.GetOpenActionItemsByDepartmentAsync(departmentId.Value)).ToList();
+
+            var pagedVisits = await _visitService.GetVisitsByDepartmentPagedAsync(departmentId.Value, page, PageSize);
+            vm.Visits    = pagedVisits.Items.ToList();
+            vm.OpenItems = (await _visitService.GetOpenActionItemsByDepartmentAsync(departmentId.Value)).ToList();
+
+            ViewBag.Pagination = new PaginationViewModel
+            {
+                CurrentPage = pagedVisits.Page,
+                TotalPages  = pagedVisits.TotalPages,
+                TotalCount  = pagedVisits.TotalCount,
+                RouteValues = new Dictionary<string, string> { ["departmentId"] = departmentId.Value.ToString() }
+            };
         }
         else
         {
-            vm.GlobalOpenItems = (await _visitService.GetAllOpenActionItemsAsync()).ToList();
+            var pagedItems = await _visitService.GetAllOpenActionItemsPagedAsync(page, PageSize);
+            vm.GlobalOpenItems = pagedItems.Items.ToList();
+
+            ViewBag.Pagination = new PaginationViewModel
+            {
+                CurrentPage = pagedItems.Page,
+                TotalPages  = pagedItems.TotalPages,
+                TotalCount  = pagedItems.TotalCount,
+                RouteValues = new Dictionary<string, string>()
+            };
         }
 
         return View(vm);

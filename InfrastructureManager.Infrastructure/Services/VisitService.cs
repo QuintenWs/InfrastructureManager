@@ -7,6 +7,7 @@ using InfrastructureManager.Infrastructure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using InfrastructureManager.Application.Common;
 
 namespace InfrastructureManager.Infrastructure.Services;
 
@@ -27,6 +28,71 @@ public class VisitService : IVisitService
         _httpContextAccessor = httpContextAccessor;
         _userManager         = userManager;
         _audit               = audit;
+    }
+
+    public async Task<PagedResult<ActionItemDto>> GetAllOpenActionItemsPagedAsync(int page, int pageSize, int? locationId = null)
+    {
+        var query = _context.ActionItems
+            .Where(a => a.Status != ActionItemStatus.Resolved)
+            .Include(a => a.Department).ThenInclude(d => d.Location)
+            .AsQueryable();
+
+        if (locationId.HasValue)
+            query = query.Where(a => a.Department.LocationId == locationId.Value);
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(a => a.Priority)
+            .ThenBy(a => a.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<ActionItemDto>
+        {
+            Items      = items.Select(ToDto).ToList(),
+            TotalCount = totalCount,
+            Page       = page,
+            PageSize   = pageSize
+        };
+    }
+
+    public async Task<PagedResult<SiteVisitDto>> GetVisitsByDepartmentPagedAsync(int departmentId, int page, int pageSize)
+    {
+        var query = _context.SiteVisits.Where(v => v.DepartmentId == departmentId);
+
+        var totalCount = await query.CountAsync();
+
+        var visits = await query
+            .OrderByDescending(v => v.VisitDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(v => new
+            {
+                v.Id, v.DepartmentId, v.UserDisplayName, v.VisitDate, v.Summary, v.CreatedAt,
+                ResolvedCount = v.ResolvedItems.Count,
+                NewCount      = v.CreatedItems.Count
+            })
+            .ToListAsync();
+
+        return new PagedResult<SiteVisitDto>
+        {
+            Items = visits.Select(x => new SiteVisitDto
+            {
+                Id                = x.Id,
+                DepartmentId      = x.DepartmentId,
+                UserDisplayName   = x.UserDisplayName,
+                VisitDate         = x.VisitDate,
+                Summary           = x.Summary,
+                CreatedAt         = x.CreatedAt,
+                ResolvedItemCount = x.ResolvedCount,
+                NewItemCount      = x.NewCount
+            }).ToList(),
+            TotalCount = totalCount,
+            Page       = page,
+            PageSize   = pageSize
+        };
     }
 
     public async Task<IEnumerable<SiteVisitDto>> GetVisitsByDepartmentAsync(int departmentId)

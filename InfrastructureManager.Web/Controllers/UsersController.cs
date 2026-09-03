@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -11,6 +12,7 @@ namespace InfrastructureManager.Web.Controllers;
 public class UsersController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private const int PageSize = 20;
 
     public UsersController(UserManager<ApplicationUser> userManager)
     {
@@ -18,11 +20,17 @@ public class UsersController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1)
     {
-        var users = await _userManager.Users
+        var query = _userManager.Users
             .OrderBy(u => u.LastName)
-            .ThenBy(u => u.FirstName)
+            .ThenBy(u => u.FirstName);
+
+        var totalCount = await query.CountAsync();
+
+        var users = await query
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
             .ToListAsync();
 
         var vm = new List<UserListViewModel>();
@@ -40,6 +48,14 @@ public class UsersController : Controller
                 CreatedAt = u.CreatedAt
             });
         }
+
+        ViewBag.Pagination = new PaginationViewModel
+        {
+            CurrentPage = page,
+            TotalPages  = PageSize <= 0 ? 0 : (int)Math.Ceiling(totalCount / (double)PageSize),
+            TotalCount  = totalCount,
+            RouteValues = new Dictionary<string, string>()
+        };
 
         return View(vm);
     }

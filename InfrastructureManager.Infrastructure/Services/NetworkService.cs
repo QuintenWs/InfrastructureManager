@@ -8,6 +8,7 @@ using InfrastructureManager.Domain.Exceptions;
 using InfrastructureManager.Domain.Helpers;
 using InfrastructureManager.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using InfrastructureManager.Application.Common;
 
 namespace InfrastructureManager.Infrastructure.Services;
 
@@ -31,6 +32,59 @@ public class NetworkService : INetworkService
     {
         var items = await _networkRepository.SearchAsync(search);
         return items.Select(ToDto);
+    }
+
+    public async Task<PagedResult<NetworkDto>> FilterPagedAsync(NetworkFilter filter, int page, int pageSize)
+    {
+        var query = _context.Networks
+            .Include(x => x.Department).ThenInclude(d => d.Location)
+            .Include(x => x.Devices)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var s = filter.Search.Trim().ToLower();
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(s)            ||
+                x.NetworkAddress.ToLower().Contains(s)  ||
+                x.Gateway.ToLower().Contains(s)         ||
+                x.Department.Name.ToLower().Contains(s) ||
+                (x.IspName != null && x.IspName.ToLower().Contains(s)));
+        }
+
+        if (filter.IsDhcpEnabled.HasValue)
+            query = query.Where(x => x.IsDhcpEnabled == filter.IsDhcpEnabled.Value);
+
+        if (filter.IsInternetAccessible.HasValue)
+            query = query.Where(x => x.IsInternetAccessible == filter.IsInternetAccessible.Value);
+
+        if (filter.DepartmentId.HasValue)
+            query = query.Where(x => x.DepartmentId == filter.DepartmentId.Value);
+
+        if (filter.LocationId.HasValue)
+            query = query.Where(x => x.LocationId == filter.LocationId.Value);
+
+        if (filter.VlanId.HasValue)
+            query = query.Where(x => x.VlanId == filter.VlanId.Value);
+
+        if (!string.IsNullOrWhiteSpace(filter.IspName))
+            query = query.Where(x => x.IspName != null && x.IspName.Contains(filter.IspName));
+
+        var totalCount = await query.CountAsync();
+
+        var entities = await query
+            .OrderBy(x => x.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<NetworkDto>
+        {
+            Items      = entities.Select(ToDto).ToList(),
+            TotalCount = totalCount,
+            Page       = page,
+            PageSize   = pageSize
+        };
     }
 
     public async Task<NetworkDto?> GetByIdAsync(int id)

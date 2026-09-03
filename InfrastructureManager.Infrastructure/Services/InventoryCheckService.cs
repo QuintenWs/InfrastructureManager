@@ -6,6 +6,7 @@ using InfrastructureManager.Infrastructure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using InfrastructureManager.Application.Common;
 
 namespace InfrastructureManager.Infrastructure.Services;
 
@@ -26,6 +27,53 @@ public class InventoryCheckService : IInventoryCheckService
         _httpContextAccessor = httpContextAccessor;
         _userManager         = userManager;
         _audit               = audit;
+    }
+
+    public async Task<PagedResult<InventoryCheckSummaryDto>> GetByDepartmentPagedAsync(int departmentId, int page, int pageSize)
+    {
+        var query = _context.InventoryChecks
+            .Where(c => c.DepartmentId == departmentId)
+            .Include(c => c.Department).ThenInclude(d => d.Location)
+            .Include(c => c.Items);
+
+        var totalCount = await query.CountAsync();
+
+        var checks = await query
+            .OrderByDescending(c => c.CheckDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<InventoryCheckSummaryDto>
+        {
+            Items      = checks.Select(ToSummaryDto).ToList(),
+            TotalCount = totalCount,
+            Page       = page,
+            PageSize   = pageSize
+        };
+    }
+
+    public async Task<PagedResult<InventoryCheckSummaryDto>> GetRecentPagedAsync(int page, int pageSize)
+    {
+        var query = _context.InventoryChecks
+            .Include(c => c.Department).ThenInclude(d => d.Location)
+            .Include(c => c.Items);
+
+        var totalCount = await query.CountAsync();
+
+        var checks = await query
+            .OrderByDescending(c => c.CheckDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<InventoryCheckSummaryDto>
+        {
+            Items      = checks.Select(ToSummaryDto).ToList(),
+            TotalCount = totalCount,
+            Page       = page,
+            PageSize   = pageSize
+        };
     }
 
     public async Task<IEnumerable<InventoryCheckSummaryDto>> GetByDepartmentAsync(int departmentId)

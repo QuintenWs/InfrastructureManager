@@ -1,6 +1,6 @@
 using InfrastructureManager.Application.DTOs.Networks;
 using InfrastructureManager.Application.Filters;
-
+using InfrastructureManager.Application.Common;
 
 namespace InfrastructureManager.Application.Interfaces.Services;
 
@@ -19,4 +19,6 @@ public interface INetworkService
 
     Task<IEnumerable<NetworkDto>> FilterAsync(
     NetworkFilter filter);
+
+    Task<PagedResult<NetworkDto>> FilterPagedAsync(NetworkFilter filter, int page, int pageSize);
 }

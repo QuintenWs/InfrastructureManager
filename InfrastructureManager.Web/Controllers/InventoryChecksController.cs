@@ -5,6 +5,7 @@ using InfrastructureManager.Web.ViewModels.InventoryChecks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -16,6 +17,7 @@ public class InventoryChecksController : Controller
     private readonly IInventoryCheckService _checkService;
     private readonly IDepartmentService     _departmentService;
     private readonly IDeviceService         _deviceService;
+    private const int PageSize = 20;
 
     public InventoryChecksController(
         IInventoryCheckService checkService,
@@ -28,7 +30,7 @@ public class InventoryChecksController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(int? departmentId)
+    public async Task<IActionResult> Index(int? departmentId, int page = 1)
     {
         var departments = await GetDepartmentsAsync();
 
@@ -41,11 +43,30 @@ public class InventoryChecksController : Controller
         if (departmentId.HasValue)
         {
             vm.DepartmentLabel = departments.FirstOrDefault(d => d.Value == departmentId.Value.ToString())?.Text;
-            vm.Checks          = (await _checkService.GetByDepartmentAsync(departmentId.Value)).ToList();
+
+            var paged = await _checkService.GetByDepartmentPagedAsync(departmentId.Value, page, PageSize);
+            vm.Checks = paged.Items.ToList();
+
+            ViewBag.Pagination = new PaginationViewModel
+            {
+                CurrentPage = paged.Page,
+                TotalPages  = paged.TotalPages,
+                TotalCount  = paged.TotalCount,
+                RouteValues = new Dictionary<string, string> { ["departmentId"] = departmentId.Value.ToString() }
+            };
         }
         else
         {
-            vm.RecentChecks = (await _checkService.GetRecentAsync()).ToList();
+            var paged = await _checkService.GetRecentPagedAsync(page, PageSize);
+            vm.RecentChecks = paged.Items.ToList();
+
+            ViewBag.Pagination = new PaginationViewModel
+            {
+                CurrentPage = paged.Page,
+                TotalPages  = paged.TotalPages,
+                TotalCount  = paged.TotalCount,
+                RouteValues = new Dictionary<string, string>()
+            };
         }
 
         return View(vm);

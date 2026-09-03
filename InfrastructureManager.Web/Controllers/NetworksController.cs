@@ -7,6 +7,7 @@ using InfrastructureManager.Web.ViewModels.Networks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -15,6 +16,7 @@ public class NetworksController : Controller
 {
     private readonly INetworkService    _networkService;
     private readonly IDepartmentService _departmentService;
+    private const int PageSize = 20;
 
     public NetworksController(
         INetworkService    networkService,
@@ -24,11 +26,12 @@ public class NetworksController : Controller
         _departmentService = departmentService;
     }
 
+
     [HttpGet]
     public async Task<IActionResult> Index(
         string? search, bool? isDhcpEnabled,
         bool? isInternetAccessible, int? departmentId,
-        int? vlanId, string? ispName)
+        int? vlanId, string? ispName, int page = 1)
     {
         var filter = new NetworkFilter
         {
@@ -40,11 +43,11 @@ public class NetworksController : Controller
             IspName              = ispName
         };
 
-        var items = await _networkService.FilterAsync(filter);
+        var paged = await _networkService.FilterPagedAsync(filter, page, PageSize);
 
         var vm = new NetworkIndexViewModel
         {
-            Networks = items.Select(x => new NetworkListViewModel
+            Networks = paged.Items.Select(x => new NetworkListViewModel
             {
                 Id                   = x.Id,
                 Name                 = x.Name,
@@ -67,6 +70,22 @@ public class NetworksController : Controller
                 VlanId               = vlanId,
                 IspName              = ispName,
                 Departments          = await GetDepartmentsAsync()
+            }
+        };
+
+        ViewBag.Pagination = new PaginationViewModel
+        {
+            CurrentPage = paged.Page,
+            TotalPages  = paged.TotalPages,
+            TotalCount  = paged.TotalCount,
+            RouteValues = new Dictionary<string, string>
+            {
+                ["search"]               = search ?? "",
+                ["isDhcpEnabled"]        = isDhcpEnabled?.ToString() ?? "",
+                ["isInternetAccessible"] = isInternetAccessible?.ToString() ?? "",
+                ["departmentId"]         = departmentId?.ToString() ?? "",
+                ["vlanId"]               = vlanId?.ToString() ?? "",
+                ["ispName"]              = ispName ?? ""
             }
         };
 

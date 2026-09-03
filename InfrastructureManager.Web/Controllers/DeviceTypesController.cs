@@ -5,6 +5,7 @@ using InfrastructureManager.Web.ViewModels.DeviceTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -13,6 +14,7 @@ public class DeviceTypesController : Controller
 {
     private readonly IDeviceTypeService _service;
     private readonly AppDbContext       _context;
+    private const int PageSize = 20;
 
     public DeviceTypesController(
         IDeviceTypeService service,
@@ -25,29 +27,33 @@ public class DeviceTypesController : Controller
     // ── Index ─────────────────────────────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int page = 1)
     {
-        var definitions = await _service.GetAllDefinitionsAsync();
+        var definitions = (await _service.GetAllDefinitionsAsync()).ToList();
+        var totalCount  = definitions.Count;
 
-        // Count devices per type
-        var deviceCounts = await _context.Devices
-            .GroupBy(d => (int)d.DeviceType)
-            .Select(g => new { TypeValue = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.TypeValue, x => x.Count);
+        var vm = definitions
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
+            .Select(d => new DeviceTypeListViewModel
+            {
+                Id          = d.Id,
+                Name        = d.Name,
+                FieldCount  = d.Fields.Count(),
+                DeviceCount = _context.Devices.Count(dev =>
+                    dev.DeviceType == _context.DeviceTypeDefinitions
+                        .Where(x => x.Id == d.Id)
+                        .Select(x => x.DeviceType)
+                        .FirstOrDefault())
+            });
 
-        // Map DeviceType enum value → definition Id via definitions
-        var vm = definitions.Select(d => new DeviceTypeListViewModel
+        ViewBag.Pagination = new PaginationViewModel
         {
-            Id          = d.Id,
-            Name        = d.Name,
-            FieldCount  = d.Fields.Count(),
-            DeviceCount = deviceCounts.TryGetValue(
-                              (int)_context.DeviceTypeDefinitions
-                                  .Where(x => x.Id == d.Id)
-                                  .Select(x => (int)x.DeviceType)
-                                  .FirstOrDefault(),
-                              out var cnt) ? cnt : 0
-        });
+            CurrentPage = page,
+            TotalPages  = PageSize <= 0 ? 0 : (int)Math.Ceiling(totalCount / (double)PageSize),
+            TotalCount  = totalCount,
+            RouteValues = new Dictionary<string, string>()
+        };
 
         return View(vm);
     }

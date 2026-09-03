@@ -1,4 +1,5 @@
 using InfrastructureManager.Application.DTOs.Visits;
+using InfrastructureManager.Application.Common;
 
 namespace InfrastructureManager.Application.Interfaces.Services;
 
@@ -26,4 +27,8 @@ public interface IVisitService
 
     /// <summary>Marks a single item as "in behandeling" without a full visit.</summary>
     Task SetInProgressAsync(int actionItemId);
+
+    Task<PagedResult<ActionItemDto>> GetAllOpenActionItemsPagedAsync(int page, int pageSize, int? locationId = null);
+
+    Task<PagedResult<SiteVisitDto>>  GetVisitsByDepartmentPagedAsync(int departmentId, int page, int pageSize);
 }

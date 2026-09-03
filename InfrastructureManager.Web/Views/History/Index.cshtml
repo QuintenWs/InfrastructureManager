@@ -153,22 +153,7 @@
                 </div>
             }
         </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-4">
-            <div class="text-secondary small">Pagina @Model.Result.Page / @Model.Result.TotalPages</div>
-            <div class="d-flex gap-2">
-                @if (Model.Result.Page > 1)
-                {
-                    <a asp-action="Index" asp-all-route-data="@GetRouteData(f, Model.Result.Page - 1)"
-                       class="btn btn-sm btn-light">← Vorige</a>
-                }
-                @if (Model.Result.Page < Model.Result.TotalPages)
-                {
-                    <a asp-action="Index" asp-all-route-data="@GetRouteData(f, Model.Result.Page + 1)"
-                       class="btn btn-sm btn-light">Volgende →</a>
-                }
-            </div>
-        </div>
+                    <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
     }
 </div>
 
@@ -187,18 +172,6 @@
 }
 
 @functions {
-    Dictionary<string, string> GetRouteData(InfrastructureManager.Web.ViewModels.History.HistoryFilterViewModel filter, int page)
-    {
-        var dict = new Dictionary<string, string>();
-        if (!string.IsNullOrWhiteSpace(filter.UserId))     dict["UserId"] = filter.UserId;
-        if (!string.IsNullOrWhiteSpace(filter.EntityType)) dict["EntityType"] = filter.EntityType;
-        if (filter.EntityId.HasValue)                      dict["EntityId"] = filter.EntityId.Value.ToString();
-        if (!string.IsNullOrWhiteSpace(filter.Search))     dict["Search"] = filter.Search;
-        if (filter.FromDate.HasValue)                      dict["FromDate"] = filter.FromDate.Value.ToString("yyyy-MM-dd");
-        if (filter.ToDate.HasValue)                        dict["ToDate"] = filter.ToDate.Value.ToString("yyyy-MM-dd");
-        dict["Page"] = page.ToString();
-        return dict;
-    }
 
     string GetActionClass(string a) => a switch
     {

@@ -5,6 +5,7 @@ using InfrastructureManager.Web.ViewModels.Contacts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -13,6 +14,7 @@ public class ContactsController : Controller
 {
     private readonly IContactService    _contactService;
     private readonly IDepartmentService _departmentService;
+    private const int PageSize = 20;
 
     public ContactsController(
         IContactService    contactService,
@@ -23,13 +25,11 @@ public class ContactsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? search, int? departmentId)
+    public async Task<IActionResult> Index(string? search, int? departmentId, int page = 1)
     {
-        var items = await _contactService.GetAllAsync(search);
-        if (departmentId.HasValue)
-            items = items.Where(x => x.DepartmentId == departmentId.Value);
+        var paged = await _contactService.GetPagedAsync(search, departmentId, page, PageSize);
 
-        var vm = items.Select(x => new ContactListViewModel
+        var vm = paged.Items.Select(x => new ContactListViewModel
         {
             Id             = x.Id,
             FullName       = x.FullName,
@@ -43,6 +43,17 @@ public class ContactsController : Controller
         ViewBag.Search       = search;
         ViewBag.DepartmentId = departmentId;
         ViewBag.Departments  = await GetDepartmentsAsync();
+        ViewBag.Pagination   = new PaginationViewModel
+        {
+            CurrentPage = paged.Page,
+            TotalPages  = paged.TotalPages,
+            TotalCount  = paged.TotalCount,
+            RouteValues = new Dictionary<string, string>
+            {
+                ["search"]       = search ?? "",
+                ["departmentId"] = departmentId?.ToString() ?? ""
+            }
+        };
 
         return View(vm);
     }
