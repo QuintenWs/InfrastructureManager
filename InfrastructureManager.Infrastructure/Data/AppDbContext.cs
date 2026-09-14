@@ -28,7 +28,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<InventoryCheckItem>    InventoryCheckItems   => Set<InventoryCheckItem>();
     public DbSet<DeviceDocument>        DeviceDocuments       => Set<DeviceDocument>();
     public DbSet<DepartmentDocument>    DepartmentDocuments   => Set<DepartmentDocument>();
-    public DbSet<UserLocationAccess>    UserLocationAccess    => Set<UserLocationAccess>();
+
+    // ── Toegangscontrole (departement-/locatie-scoping) ─────────────────────
+    public DbSet<AccessGroup>           AccessGroups          => Set<AccessGroup>();
+    public DbSet<AccessGroupGrant>      AccessGroupGrants     => Set<AccessGroupGrant>();
+    public DbSet<UserAccessGroup>       UserAccessGroups      => Set<UserAccessGroup>();
+    public DbSet<UserAccessGrant>       UserAccessGrants      => Set<UserAccessGrant>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -138,6 +143,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.UserId).HasMaxLength(450);
             entity.HasIndex(x => new { x.EntityType, x.EntityId });
             entity.HasIndex(x => x.CreatedAt);
+            entity.HasIndex(x => x.DepartmentId);
         });
 
         builder.Entity<UserDashboardSettings>(entity =>
@@ -239,12 +245,80 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        builder.Entity<UserLocationAccess>(entity =>
+        // ── Toegangscontrole ──────────────────────────────────────────────────
+
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(x => x.CanViewHistory).HasDefaultValue(false);
+        });
+
+        builder.Entity<AccessGroup>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.Property(x => x.CanViewHistory).HasDefaultValue(false);
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+
+        builder.Entity<AccessGroupGrant>(entity =>
+        {
+            entity.HasOne(x => x.AccessGroup).WithMany(x => x.Grants)
+                .HasForeignKey(x => x.AccessGroupId).OnDelete(DeleteBehavior.Cascade);
+
+            // Department-grant cascadeert normaal: Location -> Department is
+            // al een cascade-pad, dit is dus het enige pad naar hier.
+            entity.HasOne(x => x.Department).WithMany()
+                .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
+
+            // ClientSetNull (niet Cascade): Location cascadeert al naar
+            // Department, dat op zijn beurt hierboven naar deze tabel
+            // cascadeert via DepartmentId. Een tweede, rechtstreeks
+            // cascade-pad vanaf Location via LocationId zou SQL Server het
+            // schema doen weigeren ("multiple cascade paths") — zelfde
+            // redenering als bij ActionItem/InventoryCheckItem hierboven.
+            entity.HasOne(x => x.Location).WithMany()
+                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasIndex(x => new { x.AccessGroupId, x.DepartmentId })
+                .IsUnique().HasFilter("[DepartmentId] IS NOT NULL");
+            entity.HasIndex(x => new { x.AccessGroupId, x.LocationId })
+                .IsUnique().HasFilter("[LocationId] IS NOT NULL");
+        });
+
+        builder.Entity<UserAccessGroup>(entity =>
         {
             entity.Property(x => x.UserId).HasMaxLength(450).IsRequired();
-            entity.HasIndex(x => new { x.UserId, x.LocationId }).IsUnique();
+
+            entity.HasOne(x => x.AccessGroup).WithMany(x => x.Members)
+                .HasForeignKey(x => x.AccessGroupId).OnDelete(DeleteBehavior.Cascade);
+
+            // Ruimt lidmaatschappen automatisch op zodra het gebruikersaccount
+            // zelf verwijderd wordt. AspNetUsers heeft geen ander cascade-pad
+            // naar deze tabel, dus een rechtstreekse cascade hier is veilig.
+            entity.HasOne<ApplicationUser>().WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => new { x.UserId, x.AccessGroupId }).IsUnique();
+        });
+
+        builder.Entity<UserAccessGrant>(entity =>
+        {
+            entity.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+
+            entity.HasOne<ApplicationUser>().WithMany()
+                .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Department).WithMany()
+                .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
+
+            // Zelfde redenering als AccessGroupGrant.LocationId hierboven.
             entity.HasOne(x => x.Location).WithMany()
-                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasIndex(x => new { x.UserId, x.DepartmentId })
+                .IsUnique().HasFilter("[DepartmentId] IS NOT NULL");
+            entity.HasIndex(x => new { x.UserId, x.LocationId })
+                .IsUnique().HasFilter("[LocationId] IS NOT NULL");
         });
     }
 }

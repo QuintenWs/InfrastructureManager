@@ -30,7 +30,8 @@ public class VisitService : IVisitService
         _audit               = audit;
     }
 
-    public async Task<PagedResult<ActionItemDto>> GetAllOpenActionItemsPagedAsync(int page, int pageSize, int? locationId = null)
+    public async Task<PagedResult<ActionItemDto>> GetAllOpenActionItemsPagedAsync(
+        int page, int pageSize, int? locationId = null, IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
         var query = _context.ActionItems
             .Where(a => a.Status != ActionItemStatus.Resolved)
@@ -39,6 +40,9 @@ public class VisitService : IVisitService
 
         if (locationId.HasValue)
             query = query.Where(a => a.Department.LocationId == locationId.Value);
+
+        if (allowedDepartmentIds != null)
+            query = query.Where(a => allowedDepartmentIds.Contains(a.DepartmentId));
 
         var totalCount = await query.CountAsync();
 
@@ -166,7 +170,7 @@ public class VisitService : IVisitService
             .Select(ToDto);
     }
 
-    public async Task<IEnumerable<ActionItemDto>> GetAllOpenActionItemsAsync(int? locationId = null)
+    public async Task<IEnumerable<ActionItemDto>> GetAllOpenActionItemsAsync(int? locationId = null, IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
         var query = _context.ActionItems
             .Where(a => a.Status != ActionItemStatus.Resolved)
@@ -175,6 +179,9 @@ public class VisitService : IVisitService
 
         if (locationId.HasValue)
             query = query.Where(a => a.Department.LocationId == locationId.Value);
+
+        if (allowedDepartmentIds != null)
+            query = query.Where(a => allowedDepartmentIds.Contains(a.DepartmentId));
 
         var items = await query.ToListAsync();
 
@@ -202,6 +209,14 @@ public class VisitService : IVisitService
             .ToDictionaryAsync(x => x.DepartmentId, x => x.Count);
     }
 
+    public async Task<int?> GetActionItemDepartmentIdAsync(int actionItemId)
+    {
+        return await _context.ActionItems
+            .Where(a => a.Id == actionItemId)
+            .Select(a => (int?)a.DepartmentId)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<int> CreateVisitAsync(CreateSiteVisitDto dto)
     {
         var (userId, displayName) = await GetCurrentUserAsync();
@@ -221,7 +236,8 @@ public class VisitService : IVisitService
 
         var deptName = (await _context.Departments.FindAsync(dto.DepartmentId))?.Name ?? "onbekend departement";
         await _audit.LogAsync("CREATE", "SiteVisit", visit.Id, $"Bezoek — {deptName} ({visit.VisitDate:dd/MM/yyyy})",
-            newValues: new { DepartmentId = dto.DepartmentId, dto.Summary });
+            newValues: new { DepartmentId = dto.DepartmentId, dto.Summary },
+            departmentId: dto.DepartmentId);
 
         if (dto.ResolvedItems.Count > 0)
         {
@@ -247,7 +263,8 @@ public class VisitService : IVisitService
 
                 await _audit.LogAsync("UPDATE", "ActionItem", item.Id, item.Description,
                     oldValues: new { Status = oldStatus.ToString() },
-                    newValues: new { Status = item.Status.ToString(), item.ResolutionNotes });
+                    newValues: new { Status = item.Status.ToString(), item.ResolutionNotes },
+                    departmentId: dto.DepartmentId);
             }
         }
 
@@ -279,7 +296,8 @@ public class VisitService : IVisitService
         foreach (var item in newlyCreatedItems)
         {
             await _audit.LogAsync("CREATE", "ActionItem", item.Id, item.Description,
-                newValues: new { item.Description, Priority = item.Priority.ToString(), Status = item.Status.ToString() });
+                newValues: new { item.Description, Priority = item.Priority.ToString(), Status = item.Status.ToString() },
+                departmentId: dto.DepartmentId);
         }
 
         return visit.Id;
@@ -296,7 +314,8 @@ public class VisitService : IVisitService
 
         await _audit.LogAsync("UPDATE", "ActionItem", item.Id, item.Description,
             oldValues: new { Status = oldStatus.ToString() },
-            newValues: new { Status = item.Status.ToString() });
+            newValues: new { Status = item.Status.ToString() },
+            departmentId: item.DepartmentId);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

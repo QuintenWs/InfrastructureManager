@@ -11,7 +11,9 @@ public interface IFileService
 
     Task DeleteDepartmentPhotoAsync(int photoId);
 
-    Task<(byte[] Data, string ContentType, string FileName)?> GetPhotoAsync(int photoId);
+    /// <summary>DepartmentId zit in de tuple zodat de controller toegang kan
+    /// controleren vóór het bestand wordt teruggegeven.</summary>
+    Task<(byte[] Data, string ContentType, string FileName, int DepartmentId)?> GetPhotoAsync(int photoId);
 }
 
 public class PhotoUploadResult

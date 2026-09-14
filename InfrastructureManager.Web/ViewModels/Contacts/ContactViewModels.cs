@@ -28,6 +28,10 @@ public class ContactDetailsViewModel
     public string DepartmentName { get; set; } = string.Empty;
     public string LocationName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>True als de ingelogde gebruiker dit contact mag bewerken
+    /// (Admin, of Editor binnen zijn departement-scope).</summary>
+    public bool CanEdit { get; set; }
 }
 
 public class CreateContactViewModel

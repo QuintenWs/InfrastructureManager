@@ -1,10 +1,12 @@
+using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Infrastructure.Identity;
+using InfrastructureManager.Web.ViewModels.Shared;
 using InfrastructureManager.Web.ViewModels.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -12,11 +14,21 @@ namespace InfrastructureManager.Web.Controllers;
 public class UsersController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IUserAccessService           _userAccessService;
+    private readonly IDepartmentService           _departmentService;
+    private readonly ILocationService             _locationService;
     private const int PageSize = 20;
 
-    public UsersController(UserManager<ApplicationUser> userManager)
+    public UsersController(
+        UserManager<ApplicationUser> userManager,
+        IUserAccessService           userAccessService,
+        IDepartmentService           departmentService,
+        ILocationService             locationService)
     {
-        _userManager = userManager;
+        _userManager       = userManager;
+        _userAccessService = userAccessService;
+        _departmentService = departmentService;
+        _locationService   = locationService;
     }
 
     [HttpGet]
@@ -37,15 +49,23 @@ public class UsersController : Controller
         foreach (var u in users)
         {
             var roles = await _userManager.GetRolesAsync(u);
+            var role  = roles.FirstOrDefault() ?? AppRoles.Viewer;
+            var isUnrestricted = role == AppRoles.Admin;
+
             vm.Add(new UserListViewModel
             {
-                Id        = u.Id,
-                FirstName = u.FirstName,
-                LastName  = u.LastName,
-                Email     = u.Email ?? string.Empty,
-                IsActive  = u.IsActive,
-                Role      = roles.FirstOrDefault() ?? AppRoles.Viewer,
-                CreatedAt = u.CreatedAt
+                Id             = u.Id,
+                FirstName      = u.FirstName,
+                LastName       = u.LastName,
+                Email          = u.Email ?? string.Empty,
+                IsActive       = u.IsActive,
+                Role           = role,
+                CreatedAt      = u.CreatedAt,
+                IsUnrestricted = isUnrestricted,
+                // Enkel opvragen wanneer relevant — voor Admin is dit sowieso "alles".
+                AccessibleDepartmentCount = isUnrestricted
+                    ? 0
+                    : await _userAccessService.GetAccessibleDepartmentCountAsync(u.Id)
             });
         }
 
@@ -61,16 +81,24 @@ public class UsersController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create() => View();
+    public async Task<IActionResult> Create()
+    {
+        return View(new CreateUserViewModel { AvailableGroups = await GetGroupsSelectListAsync() });
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateUserViewModel vm)
     {
-        if (!ModelState.IsValid) return View(vm);
+        if (!ModelState.IsValid)
+        {
+            vm.AvailableGroups = await GetGroupsSelectListAsync();
+            return View(vm);
+        }
 
         if (await _userManager.FindByEmailAsync(vm.Email) != null)
         {
             ModelState.AddModelError(nameof(vm.Email), "A user with this email already exists.");
+            vm.AvailableGroups = await GetGroupsSelectListAsync();
             return View(vm);
         }
 
@@ -89,14 +117,16 @@ public class UsersController : Controller
         {
             foreach (var error in result.Errors)
                 ModelState.AddModelError(string.Empty, error.Description);
+            vm.AvailableGroups = await GetGroupsSelectListAsync();
             return View(vm);
         }
 
-        var role = vm.IsAdmin ? AppRoles.Admin : AppRoles.Viewer;
+        var role = NormalizeRole(vm.Role);
         await _userManager.AddToRoleAsync(user, role);
+        await _userAccessService.SetUserGroupsAsync(user.Id, vm.AccessGroupIds);
 
         TempData["Success"] = $"User {user.FirstName} {user.LastName} created as {role}.";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Edit), new { id = user.Id });
     }
 
     [HttpGet]
@@ -105,17 +135,23 @@ public class UsersController : Controller
         var user = await _userManager.FindByIdAsync(id);
         if (user == null) return NotFound();
 
-        var roles   = await _userManager.GetRolesAsync(user);
-        var isAdmin = roles.Contains(AppRoles.Admin);
+        var roles = await _userManager.GetRolesAsync(user);
+        var role  = roles.FirstOrDefault() ?? AppRoles.Viewer;
 
         var vm = new EditUserViewModel
         {
-            Id        = user.Id,
-            FirstName = user.FirstName,
-            LastName  = user.LastName,
-            Email     = user.Email ?? string.Empty,
-            IsActive  = user.IsActive,
-            IsAdmin   = isAdmin
+            Id                   = user.Id,
+            FirstName            = user.FirstName,
+            LastName             = user.LastName,
+            Email                = user.Email ?? string.Empty,
+            IsActive             = user.IsActive,
+            Role                 = role,
+            CanViewHistory       = user.CanViewHistory,
+            AccessGroupIds       = await _userAccessService.GetGroupIdsForUserAsync(id),
+            AvailableGroups      = await GetGroupsSelectListAsync(),
+            IndividualGrants     = await _userAccessService.GetIndividualGrantsForUserAsync(id),
+            AvailableDepartments = await GetDepartmentsSelectListAsync(),
+            AvailableLocations   = await GetLocationsSelectListAsync()
         };
 
         return View(vm);
@@ -124,36 +160,59 @@ public class UsersController : Controller
     [HttpPost]
     public async Task<IActionResult> Edit(EditUserViewModel vm)
     {
-        if (!ModelState.IsValid) return View(vm);
-
         var user = await _userManager.FindByIdAsync(vm.Id);
         if (user == null) return NotFound();
+
+        async Task<IActionResult> ReturnWithErrorsAsync()
+        {
+            vm.AvailableGroups      = await GetGroupsSelectListAsync();
+            vm.IndividualGrants     = await _userAccessService.GetIndividualGrantsForUserAsync(vm.Id);
+            vm.AvailableDepartments = await GetDepartmentsSelectListAsync();
+            vm.AvailableLocations   = await GetLocationsSelectListAsync();
+            return View(vm);
+        }
+
+        if (!ModelState.IsValid) return await ReturnWithErrorsAsync();
 
         var existing = await _userManager.FindByEmailAsync(vm.Email);
         if (existing != null && existing.Id != vm.Id)
         {
             ModelState.AddModelError(nameof(vm.Email), "A user with this email already exists.");
-            return View(vm);
+            return await ReturnWithErrorsAsync();
         }
 
-        user.FirstName = vm.FirstName;
-        user.LastName  = vm.LastName;
-        user.Email     = vm.Email;
-        user.UserName  = vm.Email;
-        user.IsActive  = vm.IsActive;
+        var newRole = NormalizeRole(vm.Role);
+        var currentUserId = _userManager.GetUserId(User);
+        var wasAdmin = await _userManager.IsInRoleAsync(user, AppRoles.Admin);
+
+        // Voorkomt dat een Admin zichzelf per ongeluk degradeert en zo
+        // buiten alle beheerschermen (incl. dit scherm) terechtkomt.
+        if (user.Id == currentUserId && wasAdmin && newRole != AppRoles.Admin)
+        {
+            ModelState.AddModelError(string.Empty, "Je kan je eigen Admin-rol niet verwijderen.");
+            return await ReturnWithErrorsAsync();
+        }
+
+        user.FirstName      = vm.FirstName;
+        user.LastName       = vm.LastName;
+        user.Email          = vm.Email;
+        user.UserName       = vm.Email;
+        user.IsActive       = vm.IsActive;
+        user.CanViewHistory = vm.CanViewHistory;
 
         var updateResult = await _userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             foreach (var error in updateResult.Errors)
                 ModelState.AddModelError(string.Empty, error.Description);
-            return View(vm);
+            return await ReturnWithErrorsAsync();
         }
 
-        // Sync role
         var currentRoles = await _userManager.GetRolesAsync(user);
         await _userManager.RemoveFromRolesAsync(user, currentRoles);
-        await _userManager.AddToRoleAsync(user, vm.IsAdmin ? AppRoles.Admin : AppRoles.Viewer);
+        await _userManager.AddToRoleAsync(user, newRole);
+
+        await _userAccessService.SetUserGroupsAsync(user.Id, vm.AccessGroupIds);
 
         if (!string.IsNullOrWhiteSpace(vm.NewPassword))
         {
@@ -163,12 +222,35 @@ public class UsersController : Controller
             {
                 foreach (var error in result.Errors)
                     ModelState.AddModelError(string.Empty, error.Description);
-                return View(vm);
+                return await ReturnWithErrorsAsync();
             }
         }
 
         TempData["Success"] = $"User {user.FirstName} {user.LastName} updated.";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Edit), new { id = user.Id });
+    }
+
+    // ── Individuele uitzonderingen (los van groepen) ─────────────────────────
+
+    [HttpPost]
+    public async Task<IActionResult> AddDepartmentGrant(string id, int departmentId)
+    {
+        await _userAccessService.AddDepartmentGrantToUserAsync(id, departmentId);
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AddLocationGrant(string id, int locationId)
+    {
+        await _userAccessService.AddLocationGrantToUserAsync(id, locationId);
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RemoveGrant(string id, int grantId)
+    {
+        await _userAccessService.RemoveIndividualGrantAsync(grantId);
+        return RedirectToAction(nameof(Edit), new { id });
     }
 
     [HttpPost]
@@ -200,7 +282,6 @@ public class UsersController : Controller
         var user = await _userManager.FindByIdAsync(id);
         if (user == null) return NotFound();
 
-        // Prevent self-deletion
         var currentUserId = _userManager.GetUserId(User);
         if (user.Id == currentUserId)
         {
@@ -219,4 +300,39 @@ public class UsersController : Controller
         TempData["Success"] = $"{user.FirstName} {user.LastName} deleted.";
         return RedirectToAction(nameof(Index));
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private async Task<List<SelectListItem>> GetGroupsSelectListAsync()
+    {
+        var groups = await _userAccessService.GetAllAccessGroupsAsync();
+        return groups.Select(g => new SelectListItem { Value = g.Id.ToString(), Text = g.Name }).ToList();
+    }
+
+    private async Task<List<SelectListItem>> GetDepartmentsSelectListAsync()
+    {
+        var items = await _departmentService.GetAllAsync();
+        return items.Select(x => new SelectListItem
+        {
+            Value = x.Id.ToString(),
+            Text  = $"{x.Name} – {x.LocationName}"
+        }).ToList();
+    }
+
+    private async Task<List<SelectListItem>> GetLocationsSelectListAsync()
+    {
+        var items = await _locationService.GetAllAsync();
+        return items.Select(x => new SelectListItem
+        {
+            Value = x.Id.ToString(),
+            Text  = $"{x.Name} ({x.City})"
+        }).ToList();
+    }
+
+    private static string NormalizeRole(string role) => role switch
+    {
+        AppRoles.Admin  => AppRoles.Admin,
+        AppRoles.Editor => AppRoles.Editor,
+        _               => AppRoles.Viewer
+    };
 }

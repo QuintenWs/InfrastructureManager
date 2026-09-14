@@ -9,11 +9,14 @@
         <div class="page-subtitle">Geographic Overview</div>
         <h1 class="page-heading">Locations</h1>
     </div>
-    <div>
-        <a asp-action="Create" class="btn btn-primary custom-btn">
-            <i class="bi bi-plus-lg"></i> Add Location
-        </a>
-    </div>
+    @if (User.IsInRole(AppRoles.Admin))
+    {
+        <div>
+            <a asp-action="Create" class="btn btn-primary custom-btn">
+                <i class="bi bi-plus-lg"></i> Add Location
+            </a>
+        </div>
+    }
 </div>
 
 <div class="content-card mb-4">
@@ -73,14 +76,17 @@
                         <td class="text-end">
                             <div class="table-actions">
                                 <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-light">View</a>
-                                <a asp-action="Edit"    asp-route-id="@item.Id" class="btn btn-sm btn-primary">Edit</a>
-                                <form asp-action="Delete" asp-route-id="@item.Id" method="post"
-                                      onsubmit="return confirm('Delete location @item.Name and all its data?');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                @if (User.IsInRole(AppRoles.Admin))
+                                {
+                                    <a asp-action="Edit"    asp-route-id="@item.Id" class="btn btn-sm btn-primary">Edit</a>
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post"
+                                          onsubmit="return confirm('Delete location @item.Name and all its data?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
                             </div>
                         </td>
                     </tr>

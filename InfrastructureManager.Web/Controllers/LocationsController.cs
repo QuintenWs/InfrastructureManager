@@ -13,9 +13,8 @@ public class LocationsController : Controller
 {
     private const int PageSize = 20;
 
-    private readonly ILocationService _service;
-    private readonly IUserAccessService  _userAccessService;
-
+    private readonly ILocationService   _service;
+    private readonly IUserAccessService _userAccessService;
 
     public LocationsController(ILocationService service, IUserAccessService userAccessService)
     {
@@ -56,8 +55,12 @@ public class LocationsController : Controller
     {
         if (!await _userAccessService.CanAccessLocationAsync(User, id))
         return RedirectToAction("AccessDenied", "Auth");
-        
-        var item = await _service.GetDetailsByIdAsync(id);
+
+        // Isolatiegrens is het departement: op een locatie met meerdere
+        // departementen mag iemand met toegang tot slechts één ervan de
+        // andere niet zien — ook niet via deze locatiepagina.
+        var allowedDepartmentIds = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+        var item = await _service.GetDetailsByIdAsync(id, allowedDepartmentIds);
         if (item == null) return NotFound();
 
         var vm = new LocationDetailsViewModel

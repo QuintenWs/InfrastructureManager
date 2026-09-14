@@ -113,10 +113,28 @@ public class LocationService : ILocationService
         };
     }
 
-    public async Task<LocationDetailsDto?> GetDetailsByIdAsync(int id)
+    public async Task<LocationDetailsDto?> GetDetailsByIdAsync(int id, IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
         var item = await _repository.GetDetailsByIdAsync(id);
         if (item == null) return null;
+
+        // Isolatiegrens is het departement: op een locatie met meerdere
+        // departementen mag iemand met toegang tot slechts één ervan de
+        // andere departementen (en hun netwerken/toestellen) niet zien —
+        // ook niet via deze locatiepagina.
+        var departments = allowedDepartmentIds != null
+            ? item.Departments.Where(d => allowedDepartmentIds.Contains(d.Id)).ToList()
+            : item.Departments.ToList();
+
+        var visibleDeptIds = departments.Select(d => d.Id).ToHashSet();
+
+        var networks = allowedDepartmentIds != null
+            ? item.Networks.Where(n => visibleDeptIds.Contains(n.DepartmentId)).ToList()
+            : item.Networks.ToList();
+
+        var devices = allowedDepartmentIds != null
+            ? item.Devices.Where(d => visibleDeptIds.Contains(d.DepartmentId)).ToList()
+            : item.Devices.ToList();
 
         return new LocationDetailsDto
         {
@@ -126,14 +144,14 @@ public class LocationService : ILocationService
             Country   = item.Country,
             Notes     = item.Notes,
             CreatedAt = item.CreatedAt,
-            Departments = item.Departments.Select(d => new DepartmentSummaryDto
+            Departments = departments.Select(d => new DepartmentSummaryDto
             {
                 Id           = d.Id,
                 Name         = d.Name,
                 Address      = d.Address,
                 ContactCount = d.Contacts.Count
             }),
-            Networks = item.Networks.Select(n => new NetworkSummaryDto
+            Networks = networks.Select(n => new NetworkSummaryDto
             {
                 Id             = n.Id,
                 Name           = n.Name,
@@ -141,7 +159,7 @@ public class LocationService : ILocationService
                 Cidr           = n.Cidr,
                 DeviceCount    = n.Devices.Count
             }),
-            Devices = item.Devices.Select(d => new Application.DTOs.Devices.DeviceDto
+            Devices = devices.Select(d => new Application.DTOs.Devices.DeviceDto
             {
                 Id          = d.Id,
                 Name        = d.Name,

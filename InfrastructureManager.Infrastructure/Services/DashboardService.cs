@@ -21,28 +21,46 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardDto> GetDashboardAsync(
         int? locationId = null,
-        IReadOnlyCollection<int>? allowedLocationIds = null,
+        IReadOnlyCollection<int>? allowedDepartmentIds = null,
         int recentDevicesCount = 5,
         int recentActivityCount = 10)
     {
-        List<int>? effectiveIds = allowedLocationIds?.ToList();
+        // ── Effectieve set toegankelijke departementen ──────────────────────────
+        // De isolatiegrens is het departement, niet de locatie: iemand met
+        // toegang tot slechts één departement op een locatie met meerdere
+        // departementen mag de andere(n) niet zien, ook niet via het dashboard.
+        var isScoped = locationId.HasValue || allowedDepartmentIds != null;
+        List<int>? effectiveDeptIds = null;
 
-        if (locationId.HasValue && (effectiveIds == null || effectiveIds.Contains(locationId.Value)))
-            effectiveIds = new List<int> { locationId.Value };
+        if (isScoped)
+        {
+            var deptQuery = _context.Departments.AsQueryable();
+            if (locationId.HasValue)
+                deptQuery = deptQuery.Where(d => d.LocationId == locationId.Value);
+            if (allowedDepartmentIds != null)
+                deptQuery = deptQuery.Where(d => allowedDepartmentIds.Contains(d.Id));
 
-        var deptQuery    = _context.Departments.AsQueryable();
+            effectiveDeptIds = await deptQuery.Select(d => d.Id).ToListAsync();
+        }
+
         var networkQuery = _context.Networks.AsQueryable();
         var deviceQuery  = _context.Devices.AsQueryable();
 
-        if (effectiveIds != null)
+        if (effectiveDeptIds != null)
         {
-            deptQuery    = deptQuery.Where(x => effectiveIds.Contains(x.LocationId));
-            networkQuery = networkQuery.Where(x => effectiveIds.Contains(x.LocationId));
-            deviceQuery  = deviceQuery.Where(x => effectiveIds.Contains(x.LocationId));
+            networkQuery = networkQuery.Where(x => effectiveDeptIds.Contains(x.DepartmentId));
+            deviceQuery  = deviceQuery.Where(x => effectiveDeptIds.Contains(x.DepartmentId));
         }
 
-        var totalDepartments   = await deptQuery.CountAsync();
-        var totalLocations     = effectiveIds != null ? effectiveIds.Count : await _context.Locations.CountAsync();
+        var totalDepartments = effectiveDeptIds != null
+            ? effectiveDeptIds.Count
+            : await _context.Departments.CountAsync();
+
+        var totalLocations = effectiveDeptIds != null
+            ? await _context.Departments.Where(d => effectiveDeptIds.Contains(d.Id))
+                .Select(d => d.LocationId).Distinct().CountAsync()
+            : await _context.Locations.CountAsync();
+
         var totalNetworks      = await networkQuery.CountAsync();
         var totalDevices       = await deviceQuery.CountAsync();
         var activeDevices      = await deviceQuery.CountAsync(x => x.Status == DeviceStatus.Active);
@@ -61,8 +79,14 @@ public class DashboardService : IDashboardService
             })
             .ToListAsync();
 
-        // Blijft globaal — AuditLog houdt geen LocationId bij.
-        var rawLogs = await _context.AuditLogs
+        // Audit-log is nu wél scopebaar via DepartmentId — enkel entries
+        // zonder departement (systeembreed, bv. Import) blijven verborgen
+        // zodra er een beperking geldt.
+        var rawLogsQuery = _context.AuditLogs.AsQueryable();
+        if (effectiveDeptIds != null)
+            rawLogsQuery = rawLogsQuery.Where(a => a.DepartmentId.HasValue && effectiveDeptIds.Contains(a.DepartmentId.Value));
+
+        var rawLogs = await rawLogsQuery
             .OrderByDescending(x => x.CreatedAt)
             .Take(recentActivityCount)
             .ToListAsync();
@@ -87,18 +111,18 @@ public class DashboardService : IDashboardService
             RetiredDevices     = retiredDevices,
             RecentDevices      = recentDevices,
             RecentActivity     = recentActivity,
-            ExpiringItems      = await GetExpiringItemsAsync(effectiveIds),
-            OverdueVisits      = await GetOverdueVisitsAsync(effectiveIds)
+            ExpiringItems      = await GetExpiringItemsAsync(effectiveDeptIds),
+            OverdueVisits      = await GetOverdueVisitsAsync(effectiveDeptIds)
         };
     }
 
-    private async Task<List<ExpiringItemDto>> GetExpiringItemsAsync(List<int>? locationIds)
+    private async Task<List<ExpiringItemDto>> GetExpiringItemsAsync(List<int>? departmentIds)
     {
         var candidatesQuery = _context.DeviceFieldValues
             .Where(v => v.Field.AlertOnExpiry && v.Field.FieldType == "date" && v.Value != "");
 
-        if (locationIds != null)
-            candidatesQuery = candidatesQuery.Where(v => locationIds.Contains(v.Device.LocationId));
+        if (departmentIds != null)
+            candidatesQuery = candidatesQuery.Where(v => departmentIds.Contains(v.Device.DepartmentId));
 
         var candidates = await candidatesQuery
             .Select(v => new
@@ -126,11 +150,11 @@ public class DashboardService : IDashboardService
     }
 
     /// <summary>Departementen zonder bezoek, of waarvan het laatste bezoek meer dan 2 jaar geleden is.</summary>
-    private async Task<List<OverdueVisitDto>> GetOverdueVisitsAsync(List<int>? locationIds)
+    private async Task<List<OverdueVisitDto>> GetOverdueVisitsAsync(List<int>? departmentIds)
     {
         var query = _context.Departments.Include(d => d.Location).AsQueryable();
-        if (locationIds != null)
-            query = query.Where(d => locationIds.Contains(d.LocationId));
+        if (departmentIds != null)
+            query = query.Where(d => departmentIds.Contains(d.Id));
 
         var raw = await query
             .Select(d => new

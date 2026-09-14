@@ -1,0 +1,166 @@
+@model InfrastructureManager.Web.ViewModels.AccessGroups.AccessGroupDetailsViewModel
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<div class="details-header">
+    <div>
+        <div class="breadcrumbs">
+            <a asp-action="Index">Toegangsgroepen</a>
+            <span>/</span>
+            <span>@Model.Name</span>
+        </div>
+        <h1 class="details-title">@Model.Name</h1>
+        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <div class="details-subtitle">@Model.Description</div>
+        }
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
+            <i class="bi bi-pencil"></i> Bewerken
+        </a>
+        <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
+              onsubmit="return confirm('Groep @Model.Name verwijderen? Leden verliezen de toegang die enkel via deze groep kwam.');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-danger custom-btn">
+                <i class="bi bi-trash"></i> Verwijderen
+            </button>
+        </form>
+    </div>
+</div>
+
+@if (Model.CanViewHistory)
+{
+    <div class="custom-alert alert-info mb-4">
+        <i class="bi bi-clock-history"></i>
+        <span>Leden van deze groep mogen de audit-geschiedenis bekijken (beperkt tot hun eigen departementen).</span>
+    </div>
+}
+
+<div class="content-card mb-4">
+    <div class="details-section-title">Toegewezen scopes</div>
+
+    @if (!Model.Grants.Any())
+    {
+        <div class="empty-notes mb-4">Nog geen departementen of locaties toegekend.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2 mb-4">
+            @foreach (var grant in Model.Grants)
+            {
+                <div class="d-flex justify-content-between align-items-center p-3"
+                     style="border:1px solid var(--color-border);border-radius:var(--radius-md)">
+                    <span style="font-size:13.5px">
+                        @grant.Label
+                        @if (grant.IsLocation)
+                        {
+                            <span class="status-badge status-maintenance ms-2" style="font-size:.7rem">volledige locatie</span>
+                        }
+                    </span>
+                    <form asp-action="RemoveGrant" method="post"
+                          onsubmit="return confirm('Deze scope verwijderen?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="grantId" value="@grant.Id" />
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">
+                Departement toevoegen
+            </label>
+            <form asp-action="AddDepartmentGrant" method="post" class="d-flex gap-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <select name="departmentId" class="form-select">
+                    @foreach (var dept in Model.AvailableDepartments)
+                    {
+                        <option value="@dept.Value">@dept.Text</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-light custom-btn flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">
+                Volledige locatie toevoegen
+            </label>
+            <form asp-action="AddLocationGrant" method="post" class="d-flex gap-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <select name="locationId" class="form-select">
+                    @foreach (var loc in Model.AvailableLocations)
+                    {
+                        <option value="@loc.Value">@loc.Text</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-light custom-btn flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="content-card">
+    <div class="details-section-title">Leden</div>
+
+    @if (!Model.Members.Any())
+    {
+        <div class="empty-notes mb-4">Nog geen leden in deze groep.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2 mb-4">
+            @foreach (var member in Model.Members)
+            {
+                <div class="d-flex justify-content-between align-items-center p-3"
+                     style="border:1px solid var(--color-border);border-radius:var(--radius-md)">
+                    <span style="font-size:13.5px;font-weight:600">@member.DisplayName</span>
+                    <form asp-action="RemoveMember" method="post"
+                          onsubmit="return confirm('@member.DisplayName uit deze groep verwijderen?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="userId" value="@member.UserId" />
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">
+                Lid toevoegen
+            </label>
+            <form asp-action="AddMember" method="post" class="d-flex gap-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <select name="userId" class="form-select">
+                    @foreach (var u in Model.AvailableUsers)
+                    {
+                        <option value="@u.Value">@u.Text</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-light custom-btn flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

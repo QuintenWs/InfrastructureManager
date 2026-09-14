@@ -93,16 +93,19 @@
         <div class="content-card">
             <div class="details-section-title">Quick Actions</div>
             <div class="quick-actions">
-                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
-                    <i class="bi bi-pencil"></i> Edit
-                </a>
-                <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
-                      onsubmit="return confirm('Delete @Model.FullName?');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-danger custom-btn w-100">
-                        <i class="bi bi-trash"></i> Delete
-                    </button>
-                </form>
+                @if (Model.CanEdit)
+                {
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <form asp-action="Delete" asp-route-id="@Model.Id" method="post"
+                          onsubmit="return confirm('Delete @Model.FullName?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger custom-btn w-100">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                }
                 <a asp-action="Index" class="btn btn-light custom-btn">Back to Overview</a>
             </div>
         </div>

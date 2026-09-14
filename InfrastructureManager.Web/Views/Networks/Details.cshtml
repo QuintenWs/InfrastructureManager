@@ -176,11 +176,14 @@
 
             <div class="quick-actions">
 
-                <a asp-action="Edit"
-                   asp-route-id="@Model.Id"
-                   class="btn btn-primary custom-btn">
-                    Edit
-                </a>
+                @if (Model.CanEdit)
+                {
+                    <a asp-action="Edit"
+                       asp-route-id="@Model.Id"
+                       class="btn btn-primary custom-btn">
+                        Edit
+                    </a>
+                }
 
                 <a asp-action="Index"
                    class="btn btn-light custom-btn">

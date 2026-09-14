@@ -63,9 +63,9 @@ public class DeviceRepository : GenericRepository<Device>, IDeviceRepository
 
         if (filter.DepartmentId.HasValue)
             query = query.Where(x => x.DepartmentId == filter.DepartmentId.Value);
-        
-        if (filter.AllowedLocationIds != null)
-            query = query.Where(x => filter.AllowedLocationIds.Contains(x.LocationId));
+
+        if (filter.AllowedDepartmentIds != null)
+            query = query.Where(x => filter.AllowedDepartmentIds.Contains(x.DepartmentId));
 
         return await query.OrderBy(x => x.Name).ToListAsync();
     }

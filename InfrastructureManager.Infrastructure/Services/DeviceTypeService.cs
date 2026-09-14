@@ -113,7 +113,7 @@ public class DeviceTypeService : IDeviceTypeService
         {
             var device = await _context.Devices.FindAsync(deviceId);
             await _audit.LogAsync("UPDATE", "Device", deviceId, device?.Name ?? $"Toestel #{deviceId}",
-                oldValues: changedOld, newValues: changedNew);
+                oldValues: changedOld, newValues: changedNew, departmentId: device?.DepartmentId);
         }
     }
 
@@ -140,9 +140,6 @@ public class DeviceTypeService : IDeviceTypeService
 
     public async Task<int> CreateDefinitionAsync(string name, string? description)
     {
-        // Use DeviceType.Other (99) as placeholder — the enum isn't strictly needed
-        // for custom types; the definition Id is the primary key used everywhere.
-        // We still need a unique DeviceType value: use the next available int > 100.
         var maxUsed = await _context.DeviceTypeDefinitions
             .MaxAsync(d => (int?)d.DeviceType) ?? 99;
 
@@ -185,7 +182,6 @@ public class DeviceTypeService : IDeviceTypeService
             .Where(f => f.DeviceTypeDefinitionId == definitionId)
             .MaxAsync(f => (int?)f.SortOrder) ?? 0;
 
-        // Auto-generate FieldKey from label if not provided
         var key = string.IsNullOrWhiteSpace(dto.FieldKey)
             ? GenerateKey(dto.Label)
             : dto.FieldKey.Trim().ToLower().Replace(" ", "_");
@@ -198,8 +194,6 @@ public class DeviceTypeService : IDeviceTypeService
             FieldType              = dto.FieldType,
             SelectOptions          = dto.SelectOptions,
             IsRequired             = dto.IsRequired,
-            // AlertOnExpiry only makes sense for date fields — guard here so a
-            // stray posted value can never silently apply to another field type.
             AlertOnExpiry          = dto.FieldType == "date" && dto.AlertOnExpiry,
             SortOrder              = maxOrder + 1
         };
@@ -254,7 +248,6 @@ public class DeviceTypeService : IDeviceTypeService
         var fieldLabel = field.Label;
         var defName    = (await _context.DeviceTypeDefinitions.FindAsync(defId))?.Name ?? "Apparaattype";
 
-        // Remove all values for this field first (NoAction FK)
         var values = await _context.DeviceFieldValues
             .Where(v => v.DeviceTypeFieldId == fieldId)
             .ToListAsync();

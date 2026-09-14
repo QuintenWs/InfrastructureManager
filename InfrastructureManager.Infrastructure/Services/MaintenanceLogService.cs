@@ -60,11 +60,10 @@ public class MaintenanceLogService : IMaintenanceLogService
 
         await _context.SaveChangesAsync();
 
-        // Logged against the Device itself (not a separate "MaintenanceLog"
-        // type), so this note shows up directly in that device's own history.
         var device = await _context.Devices.FindAsync(deviceId);
         await _audit.LogAsync("NOTE", "Device", deviceId, device?.Name ?? $"Toestel #{deviceId}",
-            newValues: new { Note = note.Trim() });
+            newValues: new { Note = note.Trim() },
+            departmentId: device?.DepartmentId);
     }
 
     public async Task DeleteAsync(int logId)
@@ -78,7 +77,16 @@ public class MaintenanceLogService : IMaintenanceLogService
         await _context.SaveChangesAsync();
 
         await _audit.LogAsync("DELETE", "Device", entry.DeviceId, device?.Name ?? $"Toestel #{entry.DeviceId}",
-            oldValues: new { Note = entry.Note });
+            oldValues: new { Note = entry.Note },
+            departmentId: device?.DepartmentId);
+    }
+
+    public async Task<int?> GetDepartmentIdForLogAsync(int logId)
+    {
+        return await _context.MaintenanceLogs
+            .Where(l => l.Id == logId)
+            .Select(l => (int?)l.Device.DepartmentId)
+            .FirstOrDefaultAsync();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

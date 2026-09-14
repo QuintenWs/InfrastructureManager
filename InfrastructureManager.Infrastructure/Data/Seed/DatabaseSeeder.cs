@@ -16,7 +16,7 @@ public static class DatabaseSeeder
         // ── Roles ─────────────────────────────────────────────────────────────
         if (roleManager != null)
         {
-            foreach (var role in new[] { AppRoles.Admin, AppRoles.Viewer })
+            foreach (var role in new[] { AppRoles.Admin, AppRoles.Editor, AppRoles.Viewer })
             {
                 if (!await roleManager.RoleExistsAsync(role))
                     await roleManager.CreateAsync(new IdentityRole(role));

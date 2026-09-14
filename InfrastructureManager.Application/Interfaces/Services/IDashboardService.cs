@@ -6,7 +6,7 @@ public interface IDashboardService
 {
     Task<DashboardDto> GetDashboardAsync(
         int? locationId = null,
-        IReadOnlyCollection<int>? allowedLocationIds = null,
+        IReadOnlyCollection<int>? allowedDepartmentIds = null,
         int recentDevicesCount = 5,
         int recentActivityCount = 10);
 }

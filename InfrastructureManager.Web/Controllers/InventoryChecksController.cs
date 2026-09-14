@@ -1,6 +1,7 @@
 using InfrastructureManager.Application.DTOs.InventoryChecks;
 using InfrastructureManager.Application.Filters;
 using InfrastructureManager.Application.Interfaces.Services;
+using InfrastructureManager.Infrastructure.Identity;
 using InfrastructureManager.Web.ViewModels.InventoryChecks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,8 +10,9 @@ using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
-// Any authenticated user can perform a check — this is meant to be usable
-// by other services verifying what's present, not just Admins.
+// Lezen blijft toegankelijk voor elke gescoped gebruiker. Een controle
+// uitvoeren (Create) is nu Admin+Editor — voorheen kon élke ingelogde
+// gebruiker, ook een puur lezende Viewer, hier schrijven.
 [Authorize]
 public class InventoryChecksController : Controller
 {
@@ -64,7 +66,10 @@ public class InventoryChecksController : Controller
         }
         else
         {
-            var paged = await _checkService.GetRecentPagedAsync(page, PageSize);
+            // Ontbrak hier voordien: het globale "recente controles"-overzicht
+            // toonde controles van ALLE departementen, ongeacht restrictie.
+            var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+            var paged = await _checkService.GetRecentPagedAsync(page, PageSize, allowed);
             vm.RecentChecks = paged.Items.ToList();
 
             ViewBag.Pagination = new PaginationViewModel
@@ -80,9 +85,10 @@ public class InventoryChecksController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Create(int departmentId)
     {
-        if (!await _userAccessService.CanAccessDepartmentAsync(User, departmentId))
+        if (!await _userAccessService.CanEditDepartmentAsync(User, departmentId))
         return RedirectToAction("AccessDenied", "Auth");
 
         var dept = await _departmentService.GetByIdAsync(departmentId);
@@ -107,12 +113,13 @@ public class InventoryChecksController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     [RequestSizeLimit(50_000_000)] // several photos per submission
     public async Task<IActionResult> Create(CreateInventoryCheckViewModel vm)
     {
-        if (!await _userAccessService.CanAccessDepartmentAsync(User, vm.DepartmentId))
+        if (!await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
         return RedirectToAction("AccessDenied", "Auth");
-        
+
         var dto = new CreateInventoryCheckDto
         {
             DepartmentId = vm.DepartmentId,
@@ -152,21 +159,34 @@ public class InventoryChecksController : Controller
     {
         var check = await _checkService.GetByIdAsync(id);
         if (check == null) return NotFound();
+
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, check.DepartmentId))
+        return RedirectToAction("AccessDenied", "Auth");
+
         return View(check);
     }
 
     [HttpGet]
     public async Task<IActionResult> Photo(int itemId)
     {
+        var actualDepartmentId = await _checkService.GetDepartmentIdForItemAsync(itemId);
+        if (actualDepartmentId == null) return NotFound();
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, actualDepartmentId.Value))
+        return RedirectToAction("AccessDenied", "Auth");
+
         var result = await _checkService.GetPhotoAsync(itemId);
         if (result == null) return NotFound();
-        var (data, contentType, fileName) = result.Value;
+        var (data, contentType, fileName, _) = result.Value;
         return File(data, contentType, fileName);
     }
 
     private async Task<List<SelectListItem>> GetDepartmentsAsync()
     {
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var items = await _departmentService.GetAllAsync();
+        if (allowed != null)
+            items = items.Where(x => allowed.Contains(x.Id));
+
         return items.Select(x => new SelectListItem
         {
             Value = x.Id.ToString(),

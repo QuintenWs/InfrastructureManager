@@ -34,7 +34,7 @@ public class DepartmentService : IDepartmentService
         string? search,
         int page,
         int pageSize,
-        IReadOnlyCollection<int>? allowedLocationIds)
+        IReadOnlyCollection<int>? allowedDepartmentIds)
     {
         var query = _context.Departments
             .Include(d => d.Location)
@@ -50,10 +50,9 @@ public class DepartmentService : IDepartmentService
                 d.Location.City.ToLower().Contains(s));
         }
 
-        if (allowedLocationIds != null)
+        if (allowedDepartmentIds != null)
         {
-            query = query.Where(d =>
-                allowedLocationIds.Contains(d.LocationId));
+            query = query.Where(d => allowedDepartmentIds.Contains(d.Id));
         }
 
         var totalCount = await query.CountAsync();
@@ -184,7 +183,8 @@ public class DepartmentService : IDepartmentService
         await _repository.AddAsync(entity);
         await _repository.SaveChangesAsync();
         await _audit.LogAsync("CREATE", "Department", entity.Id, entity.Name,
-            newValues: new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes });
+            newValues: new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes },
+            departmentId: entity.Id);
     }
 
     public async Task UpdateAsync(UpdateDepartmentDto dto)
@@ -201,7 +201,8 @@ public class DepartmentService : IDepartmentService
         await _repository.SaveChangesAsync();
         await _audit.LogAsync("UPDATE", "Department", entity.Id, entity.Name,
             oldValues: old,
-            newValues: new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes });
+            newValues: new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes },
+            departmentId: entity.Id);
     }
 
     public async Task DeleteAsync(int id)
@@ -211,7 +212,7 @@ public class DepartmentService : IDepartmentService
         var snapshot = new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes };
         _repository.Delete(entity);
         await _repository.SaveChangesAsync();
-        await _audit.LogAsync("DELETE", "Department", id, snapshot.Name, oldValues: snapshot);
+        await _audit.LogAsync("DELETE", "Department", id, snapshot.Name, oldValues: snapshot, departmentId: id);
     }
 
     private static DepartmentDto ToDto(Department x) => new()

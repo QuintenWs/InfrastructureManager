@@ -75,7 +75,8 @@ public class DepartmentDocumentService : IDepartmentDocumentService
             var deptName = (await _context.Departments.FindAsync(departmentId))?.Name ?? $"Departement #{departmentId}";
             foreach (var doc in added)
                 await _audit.LogAsync("CREATE", "Department", departmentId, deptName,
-                    newValues: new { Document = doc.FileName, doc.Category, doc.Caption });
+                    newValues: new { Document = doc.FileName, doc.Category, doc.Caption },
+                    departmentId: departmentId);
         }
 
         return results;
@@ -91,17 +92,26 @@ public class DepartmentDocumentService : IDepartmentDocumentService
 
         var deptName = (await _context.Departments.FindAsync(doc.DepartmentId))?.Name ?? $"Departement #{doc.DepartmentId}";
         await _audit.LogAsync("DELETE", "Department", doc.DepartmentId, deptName,
-            oldValues: new { Document = doc.FileName, doc.Category, doc.Caption });
+            oldValues: new { Document = doc.FileName, doc.Category, doc.Caption },
+            departmentId: doc.DepartmentId);
     }
 
-    public async Task<(byte[] Data, string ContentType, string FileName)?> GetAsync(int documentId)
+    public async Task<(byte[] Data, string ContentType, string FileName, int DepartmentId)?> GetAsync(int documentId)
     {
         var doc = await _context.DepartmentDocuments
             .AsNoTracking()
-            .Select(d => new { d.Id, d.FileData, d.ContentType, d.FileName })
+            .Select(d => new { d.Id, d.FileData, d.ContentType, d.FileName, d.DepartmentId })
             .FirstOrDefaultAsync(d => d.Id == documentId);
 
-        return doc == null ? null : (doc.FileData, doc.ContentType, doc.FileName);
+        return doc == null ? null : (doc.FileData, doc.ContentType, doc.FileName, doc.DepartmentId);
+    }
+
+    public async Task<int?> GetDepartmentIdAsync(int documentId)
+    {
+        return await _context.DepartmentDocuments
+            .Where(d => d.Id == documentId)
+            .Select(d => (int?)d.DepartmentId)
+            .FirstOrDefaultAsync();
     }
 
     private static void ValidateFile(IFormFile file, DepartmentDocumentCategory category)

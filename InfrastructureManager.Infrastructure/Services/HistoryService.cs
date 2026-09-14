@@ -15,9 +15,14 @@ public class HistoryService : IHistoryService
         _context = context;
     }
 
-    public async Task<HistoryPageResult> SearchAsync(HistoryFilter filter)
+    public async Task<HistoryPageResult> SearchAsync(HistoryFilter filter, IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
         var query = _context.AuditLogs.AsQueryable();
+
+        // Fail-closed: entries zonder DepartmentId (systeembreed, bv. Import,
+        // apparaattype-beheer) blijven verborgen zodra er een beperking geldt.
+        if (allowedDepartmentIds != null)
+            query = query.Where(a => a.DepartmentId.HasValue && allowedDepartmentIds.Contains(a.DepartmentId.Value));
 
         if (!string.IsNullOrWhiteSpace(filter.UserId))
             query = query.Where(a => a.UserId == filter.UserId);
@@ -81,19 +86,26 @@ public class HistoryService : IHistoryService
         };
     }
 
-    public async Task<IEnumerable<string>> GetEntityTypesAsync()
+    public async Task<IEnumerable<string>> GetEntityTypesAsync(IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
-        return await _context.AuditLogs
+        var query = _context.AuditLogs.AsQueryable();
+        if (allowedDepartmentIds != null)
+            query = query.Where(a => a.DepartmentId.HasValue && allowedDepartmentIds.Contains(a.DepartmentId.Value));
+
+        return await query
             .Select(a => a.EntityType)
             .Distinct()
             .OrderBy(t => t)
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<(string UserId, string DisplayName)>> GetUsersAsync()
+    public async Task<IEnumerable<(string UserId, string DisplayName)>> GetUsersAsync(IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
-        var raw = await _context.AuditLogs
-            .Where(a => a.UserId != null)
+        var query = _context.AuditLogs.Where(a => a.UserId != null);
+        if (allowedDepartmentIds != null)
+            query = query.Where(a => a.DepartmentId.HasValue && allowedDepartmentIds.Contains(a.DepartmentId.Value));
+
+        var raw = await query
             .Select(a => new { a.UserId, a.UserDisplayName })
             .Distinct()
             .ToListAsync();

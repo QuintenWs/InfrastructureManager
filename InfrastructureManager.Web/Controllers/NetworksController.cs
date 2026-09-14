@@ -19,7 +19,6 @@ public class NetworksController : Controller
     private const int PageSize = 20;
     private readonly IUserAccessService _userAccessService;
 
-
     public NetworksController(
         INetworkService    networkService,
         IDepartmentService departmentService,
@@ -30,14 +29,13 @@ public class NetworksController : Controller
         _userAccessService = userAccessService;
     }
 
-
     [HttpGet]
     public async Task<IActionResult> Index(
         string? search, bool? isDhcpEnabled,
         bool? isInternetAccessible, int? departmentId,
         int? vlanId, string? ispName, int page = 1)
     {
-        var allowed = await _userAccessService.GetAccessibleLocationIdsAsync(User);
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var filter = new NetworkFilter
         {
             Search               = search,
@@ -45,7 +43,8 @@ public class NetworksController : Controller
             IsInternetAccessible = isInternetAccessible,
             DepartmentId         = departmentId,
             VlanId               = vlanId,
-            IspName              = ispName
+            IspName              = ispName,
+            AllowedDepartmentIds = allowed
         };
 
         var paged = await _networkService.FilterPagedAsync(filter, page, PageSize);
@@ -125,16 +124,20 @@ public class NetworksController : Controller
             IspName              = item.IspName,
             Notes                = item.Notes,
             DeviceCount          = item.DeviceCount,
-            Devices              = item.Devices
+            Devices              = item.Devices,
+            CanEdit              = await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId)
         };
 
         return View(vm);
     }
 
     [HttpGet]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Create(int? departmentId)
     {
+        if (departmentId.HasValue && !await _userAccessService.CanEditDepartmentAsync(User, departmentId.Value))
+            return RedirectToAction("AccessDenied", "Auth");
+
         var vm = new CreateNetworkViewModel
         {
             DepartmentId = departmentId ?? 0,
@@ -144,9 +147,12 @@ public class NetworksController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Create(CreateNetworkViewModel vm)
     {
+        if (!await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
@@ -186,11 +192,13 @@ public class NetworksController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Edit(int id)
     {
         var item = await _networkService.GetByIdAsync(id);
         if (item == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
 
         var vm = new UpdateNetworkViewModel
         {
@@ -217,9 +225,16 @@ public class NetworksController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Edit(UpdateNetworkViewModel vm)
     {
+        var original = await _networkService.GetByIdAsync(vm.Id);
+        if (original == null) return NotFound();
+
+        if (!await _userAccessService.CanEditDepartmentAsync(User, original.DepartmentId) ||
+            !await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
@@ -260,9 +275,14 @@ public class NetworksController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Delete(int id)
     {
+        var item = await _networkService.GetByIdAsync(id);
+        if (item == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         await _networkService.DeleteAsync(id);
         TempData["Success"] = "Network deleted.";
         return RedirectToAction(nameof(Index));
@@ -270,7 +290,11 @@ public class NetworksController : Controller
 
     private async Task<IEnumerable<SelectListItem>> GetDepartmentsAsync()
     {
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var items = await _departmentService.GetAllAsync();
+        if (allowed != null)
+            items = items.Where(x => allowed.Contains(x.Id));
+
         return items.Select(x => new SelectListItem
         {
             Value = x.Id.ToString(),

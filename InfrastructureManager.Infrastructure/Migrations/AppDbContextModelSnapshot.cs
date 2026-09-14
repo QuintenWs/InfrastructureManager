@@ -22,6 +22,73 @@ namespace InfrastructureManager.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.AccessGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("CanViewHistory")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("AccessGroups");
+                });
+
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.AccessGroupGrant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccessGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("AccessGroupId", "DepartmentId")
+                        .IsUnique()
+                        .HasFilter("[DepartmentId] IS NOT NULL");
+
+                    b.HasIndex("AccessGroupId", "LocationId")
+                        .IsUnique()
+                        .HasFilter("[LocationId] IS NOT NULL");
+
+                    b.ToTable("AccessGroupGrants");
+                });
+
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.ActionItem", b =>
                 {
                     b.Property<int>("Id")
@@ -102,6 +169,9 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EntityId")
                         .HasColumnType("int");
 
@@ -133,6 +203,8 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("DepartmentId");
 
                     b.HasIndex("EntityType", "EntityId");
 
@@ -808,6 +880,68 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.ToTable("TopologyLayouts");
                 });
 
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserAccessGrant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("UserId", "DepartmentId")
+                        .IsUnique()
+                        .HasFilter("[DepartmentId] IS NOT NULL");
+
+                    b.HasIndex("UserId", "LocationId")
+                        .IsUnique()
+                        .HasFilter("[LocationId] IS NOT NULL");
+
+                    b.ToTable("UserAccessGrants");
+                });
+
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserAccessGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccessGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccessGroupId");
+
+                    b.HasIndex("UserId", "AccessGroupId")
+                        .IsUnique();
+
+                    b.ToTable("UserAccessGroups");
+                });
+
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserDashboardSettings", b =>
                 {
                     b.Property<int>("Id")
@@ -856,32 +990,6 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.ToTable("UserDashboardSettings");
                 });
 
-            modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserLocationAccess", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("LocationId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LocationId");
-
-                    b.HasIndex("UserId", "LocationId")
-                        .IsUnique();
-
-                    b.ToTable("UserLocationAccess");
-                });
-
             modelBuilder.Entity("InfrastructureManager.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -889,6 +997,11 @@ namespace InfrastructureManager.Infrastructure.Migrations
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
+
+                    b.Property<bool>("CanViewHistory")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -1092,6 +1205,30 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.AccessGroupGrant", b =>
+                {
+                    b.HasOne("InfrastructureManager.Domain.Entities.AccessGroup", "AccessGroup")
+                        .WithMany("Grants")
+                        .HasForeignKey("AccessGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfrastructureManager.Domain.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("InfrastructureManager.Domain.Entities.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId");
+
+                    b.Navigation("AccessGroup");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Location");
                 });
 
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.ActionItem", b =>
@@ -1308,15 +1445,43 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.Navigation("Department");
                 });
 
-            modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserLocationAccess", b =>
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserAccessGrant", b =>
                 {
+                    b.HasOne("InfrastructureManager.Domain.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("InfrastructureManager.Domain.Entities.Location", "Location")
                         .WithMany()
-                        .HasForeignKey("LocationId")
+                        .HasForeignKey("LocationId");
+
+                    b.HasOne("InfrastructureManager.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Department");
+
                     b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserAccessGroup", b =>
+                {
+                    b.HasOne("InfrastructureManager.Domain.Entities.AccessGroup", "AccessGroup")
+                        .WithMany("Members")
+                        .HasForeignKey("AccessGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfrastructureManager.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AccessGroup");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1368,6 +1533,13 @@ namespace InfrastructureManager.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("InfrastructureManager.Domain.Entities.AccessGroup", b =>
+                {
+                    b.Navigation("Grants");
+
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.Department", b =>

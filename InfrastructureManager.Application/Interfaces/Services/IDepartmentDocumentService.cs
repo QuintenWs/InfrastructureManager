@@ -8,7 +8,14 @@ public interface IDepartmentDocumentService
     Task<IEnumerable<DepartmentDocumentDto>> GetByDepartmentAsync(int departmentId, DepartmentDocumentCategory? category = null);
     Task<IEnumerable<DocumentUploadResult>> UploadAsync(int departmentId, DepartmentDocumentCategory category, IFormFileCollection files, string? caption);
     Task DeleteAsync(int documentId);
-    Task<(byte[] Data, string ContentType, string FileName)?> GetAsync(int documentId);
+
+    /// <summary>DepartmentId zit in de tuple zodat de controller toegang kan
+    /// controleren vóór het bestand wordt teruggegeven, zonder een extra query.</summary>
+    Task<(byte[] Data, string ContentType, string FileName, int DepartmentId)?> GetAsync(int documentId);
+
+    /// <summary>Lichtgewicht opzoeking (geen bestandsdata) — gebruikt om
+    /// schrijftoegang te controleren vóór een verwijdering.</summary>
+    Task<int?> GetDepartmentIdAsync(int documentId);
 }
 
 public class DepartmentDocumentDto

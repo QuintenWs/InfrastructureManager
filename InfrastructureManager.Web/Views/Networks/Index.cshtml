@@ -17,11 +17,14 @@
         <div class="page-subtitle">Infrastructure</div>
         <h1 class="page-heading">Networks</h1>
     </div>
-    <div class="d-flex gap-2">
-        <a asp-action="Create" class="btn btn-primary custom-btn">
-            <i class="bi bi-plus-lg"></i> Add Network
-        </a>
-    </div>
+    @if (User.IsEditorOrAdmin())
+    {
+        <div class="d-flex gap-2">
+            <a asp-action="Create" class="btn btn-primary custom-btn">
+                <i class="bi bi-plus-lg"></i> Add Network
+            </a>
+        </div>
+    }
 </div>
 
 <div class="content-card mb-3">
@@ -202,8 +205,11 @@
                             <div class="table-actions">
                                 <a asp-action="Details" asp-route-id="@item.Id"
                                    class="btn btn-sm btn-light">View</a>
-                                <a asp-action="Edit" asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-primary">Edit</a>
+                                @if (User.IsEditorOrAdmin())
+                                {
+                                    <a asp-action="Edit" asp-route-id="@item.Id"
+                                       class="btn btn-sm btn-primary">Edit</a>
+                                }
                             </div>
                         </td>
                     </tr>

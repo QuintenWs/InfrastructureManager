@@ -17,6 +17,22 @@ builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new AuthorizeFilter(
         new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()));
+
+    // Elk formulier in deze app rendert al een antiforgery-token (via de
+    // <form> tag helper of expliciet @Html.AntiForgeryToken()), maar er was
+    // nergens een controller/actie die dat token ook effectief valideerde —
+    // CSRF-bescherming stond dus overal in de HTML, maar werd nergens
+    // afgedwongen. Deze globale filter valideert het token voortaan
+    // automatisch op elke POST/PUT/PATCH/DELETE-actie.
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+});
+
+builder.Services.AddAntiforgery(options =>
+{
+    // topology.js stuurt het token via deze header voor zijn JSON-POST
+    // (SaveLayout gebruikt [FromBody], dus er is geen formulierveld om het
+    // token uit te lezen) — moet exact overeenkomen met wat de JS al verstuurt.
+    options.HeaderName = "RequestVerificationToken";
 });
 
 builder.Services.AddHttpContextAccessor();

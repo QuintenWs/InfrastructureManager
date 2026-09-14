@@ -72,7 +72,8 @@ public class FileService : IFileService
             foreach (var photo in added)
             {
                 await _audit.LogAsync("CREATE", "Department", departmentId, deptName,
-                    newValues: new { Foto = photo.FileName, photo.Caption });
+                    newValues: new { Foto = photo.FileName, photo.Caption },
+                    departmentId: departmentId);
             }
         }
 
@@ -89,19 +90,20 @@ public class FileService : IFileService
 
         var deptName = (await _context.Departments.FindAsync(photo.DepartmentId))?.Name ?? $"Departement #{photo.DepartmentId}";
         await _audit.LogAsync("DELETE", "Department", photo.DepartmentId, deptName,
-            oldValues: new { Foto = photo.FileName, photo.Caption });
+            oldValues: new { Foto = photo.FileName, photo.Caption },
+            departmentId: photo.DepartmentId);
     }
 
-    public async Task<(byte[] Data, string ContentType, string FileName)?> GetPhotoAsync(int photoId)
+    public async Task<(byte[] Data, string ContentType, string FileName, int DepartmentId)?> GetPhotoAsync(int photoId)
     {
         var photo = await _context.DepartmentPhotos
             .AsNoTracking()
-            .Select(p => new { p.Id, p.ImageData, p.ContentType, p.FileName })
+            .Select(p => new { p.Id, p.ImageData, p.ContentType, p.FileName, p.DepartmentId })
             .FirstOrDefaultAsync(p => p.Id == photoId);
 
         if (photo == null) return null;
 
-        return (photo.ImageData, photo.ContentType, photo.FileName);
+        return (photo.ImageData, photo.ContentType, photo.FileName, photo.DepartmentId);
     }
 
     private static void ValidateFile(IFormFile file)

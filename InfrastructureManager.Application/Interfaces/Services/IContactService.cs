@@ -11,5 +11,10 @@ public interface IContactService
     Task CreateAsync(CreateContactDto dto);
     Task UpdateAsync(UpdateContactDto dto);
     Task DeleteAsync(int id);
-    Task<PagedResult<ContactDto>> GetPagedAsync(string? search, int? departmentId, int page, int pageSize);
+    Task<PagedResult<ContactDto>> GetPagedAsync(
+        string? search,
+        int? departmentId,
+        int page,
+        int pageSize,
+        IReadOnlyCollection<int>? allowedDepartmentIds = null);
 }

@@ -14,8 +14,8 @@ public interface IVisitService
     /// <summary>Open + in-progress items for one department, highest priority / oldest first.</summary>
     Task<IEnumerable<ActionItemDto>> GetOpenActionItemsByDepartmentAsync(int departmentId);
 
-    /// <summary>Open + in-progress items across all departments (optionally scoped to a location).</summary>
-    Task<IEnumerable<ActionItemDto>> GetAllOpenActionItemsAsync(int? locationId = null);
+    /// <summary>Open + in-progress items across all departments (optionally scoped to a location and/or an access restriction).</summary>
+    Task<IEnumerable<ActionItemDto>> GetAllOpenActionItemsAsync(int? locationId = null, IReadOnlyCollection<int>? allowedDepartmentIds = null);
 
     Task<int> GetOpenActionItemCountAsync(int? departmentId = null);
 
@@ -28,7 +28,10 @@ public interface IVisitService
     /// <summary>Marks a single item as "in behandeling" without a full visit.</summary>
     Task SetInProgressAsync(int actionItemId);
 
-    Task<PagedResult<ActionItemDto>> GetAllOpenActionItemsPagedAsync(int page, int pageSize, int? locationId = null);
+    /// <summary>Departement van een actiepunt — gebruikt om schrijftoegang te controleren voor SetInProgress.</summary>
+    Task<int?> GetActionItemDepartmentIdAsync(int actionItemId);
+
+    Task<PagedResult<ActionItemDto>> GetAllOpenActionItemsPagedAsync(int page, int pageSize, int? locationId = null, IReadOnlyCollection<int>? allowedDepartmentIds = null);
 
     Task<PagedResult<SiteVisitDto>>  GetVisitsByDepartmentPagedAsync(int departmentId, int page, int pageSize);
 }

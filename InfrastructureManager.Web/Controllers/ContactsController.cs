@@ -14,20 +14,27 @@ public class ContactsController : Controller
 {
     private readonly IContactService    _contactService;
     private readonly IDepartmentService _departmentService;
+    private readonly IUserAccessService _userAccessService;
     private const int PageSize = 20;
 
     public ContactsController(
         IContactService    contactService,
-        IDepartmentService departmentService)
+        IDepartmentService departmentService,
+        IUserAccessService userAccessService)
     {
         _contactService    = contactService;
         _departmentService = departmentService;
+        _userAccessService = userAccessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(string? search, int? departmentId, int page = 1)
     {
-        var paged = await _contactService.GetPagedAsync(search, departmentId, page, PageSize);
+        if (departmentId.HasValue && !await _userAccessService.CanAccessDepartmentAsync(User, departmentId.Value))
+            return RedirectToAction("AccessDenied", "Auth");
+
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+        var paged = await _contactService.GetPagedAsync(search, departmentId, page, PageSize, allowed);
 
         var vm = paged.Items.Select(x => new ContactListViewModel
         {
@@ -64,6 +71,9 @@ public class ContactsController : Controller
         var item = await _contactService.GetByIdAsync(id);
         if (item == null) return NotFound();
 
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         var vm = new ContactDetailsViewModel
         {
             Id             = item.Id,
@@ -76,16 +86,20 @@ public class ContactsController : Controller
             DepartmentId   = item.DepartmentId,
             DepartmentName = item.DepartmentName,
             LocationName   = item.LocationName,
-            CreatedAt      = item.CreatedAt
+            CreatedAt      = item.CreatedAt,
+            CanEdit        = await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId)
         };
 
         return View(vm);
     }
 
     [HttpGet]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Create(int? departmentId)
     {
+        if (departmentId.HasValue && !await _userAccessService.CanEditDepartmentAsync(User, departmentId.Value))
+            return RedirectToAction("AccessDenied", "Auth");
+
         var vm = new CreateContactViewModel
         {
             DepartmentId = departmentId ?? 0,
@@ -95,9 +109,12 @@ public class ContactsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Create(CreateContactViewModel vm)
     {
+        if (!await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
@@ -120,11 +137,14 @@ public class ContactsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Edit(int id)
     {
         var item = await _contactService.GetByIdAsync(id);
         if (item == null) return NotFound();
+
+        if (!await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
 
         var vm = new UpdateContactViewModel
         {
@@ -143,9 +163,16 @@ public class ContactsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Edit(UpdateContactViewModel vm)
     {
+        var original = await _contactService.GetByIdAsync(vm.Id);
+        if (original == null) return NotFound();
+
+        if (!await _userAccessService.CanEditDepartmentAsync(User, original.DepartmentId) ||
+            !await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
@@ -169,9 +196,15 @@ public class ContactsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Delete(int id)
     {
+        var item = await _contactService.GetByIdAsync(id);
+        if (item == null) return NotFound();
+
+        if (!await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         await _contactService.DeleteAsync(id);
         TempData["Success"] = "Contact deleted.";
         return RedirectToAction(nameof(Index));
@@ -179,7 +212,11 @@ public class ContactsController : Controller
 
     private async Task<IEnumerable<SelectListItem>> GetDepartmentsAsync()
     {
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var items = await _departmentService.GetAllAsync();
+        if (allowed != null)
+            items = items.Where(x => allowed.Contains(x.Id));
+
         return items.Select(x => new SelectListItem
         {
             Value = x.Id.ToString(),

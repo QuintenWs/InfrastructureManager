@@ -69,9 +69,9 @@ public class NetworkService : INetworkService
 
         if (!string.IsNullOrWhiteSpace(filter.IspName))
             query = query.Where(x => x.IspName != null && x.IspName.Contains(filter.IspName));
-        
-        if (filter.AllowedLocationIds != null)
-            query = query.Where(x => filter.AllowedLocationIds.Contains(x.LocationId));
+
+        if (filter.AllowedDepartmentIds != null)
+            query = query.Where(x => filter.AllowedDepartmentIds.Contains(x.DepartmentId));
 
         var totalCount = await query.CountAsync();
 
@@ -145,7 +145,8 @@ public class NetworkService : INetworkService
                 entity.PrimaryDns, entity.SecondaryDns, entity.DhcpRangeStart, entity.DhcpRangeEnd,
                 entity.IsDhcpEnabled, entity.IsInternetAccessible, entity.VlanId, entity.IspName,
                 entity.Notes, entity.DepartmentId
-            });
+            },
+            departmentId: entity.DepartmentId);
     }
 
     public async Task UpdateAsync(UpdateNetworkDto dto)
@@ -197,7 +198,8 @@ public class NetworkService : INetworkService
                 entity.PrimaryDns, entity.SecondaryDns, entity.DhcpRangeStart, entity.DhcpRangeEnd,
                 entity.IsDhcpEnabled, entity.IsInternetAccessible, entity.VlanId, entity.IspName,
                 entity.Notes, entity.DepartmentId
-            });
+            },
+            departmentId: entity.DepartmentId);
     }
 
     public async Task DeleteAsync(int id)
@@ -219,7 +221,7 @@ public class NetworkService : INetworkService
         _networkRepository.Delete(entity);
         await _networkRepository.SaveChangesAsync();
 
-        await _audit.LogAsync("DELETE", "Network", id, snapshot.Name, oldValues: snapshot);
+        await _audit.LogAsync("DELETE", "Network", id, snapshot.Name, oldValues: snapshot, departmentId: snapshot.DepartmentId);
     }
 
     public async Task<IEnumerable<NetworkDto>> FilterAsync(NetworkFilter filter)

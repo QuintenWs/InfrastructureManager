@@ -58,7 +58,8 @@ public class DeviceService : IDeviceService
         await _repository.SaveChangesAsync();
 
         await _audit.LogAsync("CREATE", "Device", entity.Id, entity.Name,
-            newValues: new { entity.Name, entity.DeviceType, entity.Status, entity.DepartmentId, entity.NetworkId, entity.Notes });
+            newValues: new { entity.Name, entity.DeviceType, entity.Status, entity.DepartmentId, entity.NetworkId, entity.Notes },
+            departmentId: entity.DepartmentId);
 
         return entity.Id;
     }
@@ -88,7 +89,8 @@ public class DeviceService : IDeviceService
 
         await _audit.LogAsync("UPDATE", "Device", entity.Id, entity.Name,
             oldValues: old,
-            newValues: new { entity.Name, entity.DeviceType, entity.Status, entity.NetworkId, entity.DepartmentId, entity.Notes });
+            newValues: new { entity.Name, entity.DeviceType, entity.Status, entity.NetworkId, entity.DepartmentId, entity.Notes },
+            departmentId: entity.DepartmentId);
     }
 
     public async Task DeleteAsync(int id)
@@ -100,7 +102,7 @@ public class DeviceService : IDeviceService
         _repository.Delete(entity);
         await _repository.SaveChangesAsync();
 
-        await _audit.LogAsync("DELETE", "Device", id, snapshot.Name, oldValues: snapshot);
+        await _audit.LogAsync("DELETE", "Device", id, snapshot.Name, oldValues: snapshot, departmentId: snapshot.DepartmentId);
     }
 
     public async Task<IEnumerable<DeviceDto>> FilterAsync(DeviceFilter filter)
@@ -139,6 +141,12 @@ public class DeviceService : IDeviceService
 
         if (filter.DepartmentId.HasValue)
             query = query.Where(x => x.DepartmentId == filter.DepartmentId.Value);
+
+        // Was voorheen ontbrekend: de eigenlijke gepagineerde device-lijst
+        // (deze methode) paste de toegangsbeperking niet toe, waardoor elke
+        // ingelogde gebruiker gewoon alle toestellen zag ongeacht restrictie.
+        if (filter.AllowedDepartmentIds != null)
+            query = query.Where(x => filter.AllowedDepartmentIds.Contains(x.DepartmentId));
 
         var totalCount = await query.CountAsync();
 

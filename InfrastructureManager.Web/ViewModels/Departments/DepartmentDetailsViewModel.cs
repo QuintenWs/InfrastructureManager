@@ -21,6 +21,15 @@ public class DepartmentDetailsViewModel
     /// <summary>Date of the most recent digital inventory check, if any — see Controles.</summary>
     public DateTime? LastCheckDate { get; set; }
 
+    /// <summary>True als de ingelogde gebruiker dit departement mag bewerken
+    /// (Admin, of Editor binnen zijn scope) — stuurt of edit/upload/delete-
+    /// knoppen in de view getoond worden.</summary>
+    public bool CanEdit { get; set; }
+
+    /// <summary>True als de ingelogde gebruiker de audit-geschiedenis mag
+    /// bekijken (Admin, of individueel/via een groep toegekend).</summary>
+    public bool CanViewHistory { get; set; }
+
     public IEnumerable<ContactInDeptViewModel>     Contacts          { get; set; } = new List<ContactInDeptViewModel>();
     public IEnumerable<DeviceTypeSummaryViewModel> DeviceTypeSummary { get; set; } = new List<DeviceTypeSummaryViewModel>();
     public IEnumerable<NetworkInDeptViewModel>     Networks          { get; set; } = new List<NetworkInDeptViewModel>();

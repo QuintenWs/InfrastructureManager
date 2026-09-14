@@ -9,79 +9,221 @@
         <div class="breadcrumb-nav">
             <a asp-action="Index">Users</a><span>/</span><span>Edit</span>
         </div>
-        <h1 class="page-heading">Edit User</h1>
+        <h1 class="page-heading">@Model.FirstName @Model.LastName</h1>
     </div>
 </div>
 
-<div class="form-page">
-    <div class="form-card">
-        <form asp-action="Edit" method="post">
+<form asp-action="Edit" method="post">
 
-            <input asp-for="Id" type="hidden" />
-            <partial name="_ValidationSummary" />
+    <input asp-for="Id" type="hidden" />
+    <partial name="_ValidationSummary" />
 
-            <div class="form-grid">
+    <div class="content-card mb-4">
+        <div class="details-section-title">Accountgegevens</div>
+        <div class="form-grid">
 
-                <div class="form-group">
-                    <label asp-for="FirstName"></label>
-                    <input asp-for="FirstName" class="form-control custom-input" />
-                    <span asp-validation-for="FirstName" class="text-danger small"></span>
-                </div>
-
-                <div class="form-group">
-                    <label asp-for="LastName"></label>
-                    <input asp-for="LastName" class="form-control custom-input" />
-                    <span asp-validation-for="LastName" class="text-danger small"></span>
-                </div>
-
-                <div class="form-group">
-                    <label asp-for="Email"></label>
-                    <input asp-for="Email" class="form-control custom-input" type="email" />
-                    <span asp-validation-for="Email" class="text-danger small"></span>
-                </div>
-
-                <div class="form-group">
-                    <label asp-for="NewPassword"></label>
-                    <input asp-for="NewPassword" class="form-control custom-input" type="password"
-                           placeholder="Leave empty to keep current password" />
-                    <span asp-validation-for="NewPassword" class="text-danger small"></span>
-                </div>
-
+            <div class="form-group">
+                <label asp-for="FirstName"></label>
+                <input asp-for="FirstName" class="form-control custom-input" />
+                <span asp-validation-for="FirstName" class="text-danger small"></span>
             </div>
 
-            <div class="content-card mt-4" style="background:var(--surface-raised,#f8f7f4)">
-                <div class="details-section-title">Permissions</div>
-                <div class="row g-3">
-                    <div class="col-12">
-                        <div class="form-check">
-                            <input asp-for="IsAdmin" class="form-check-input" />
-                            <label asp-for="IsAdmin" class="form-check-label fw-semibold"></label>
-                            <div class="text-secondary small mt-1">
-                                Admins can create, edit and delete everything.
-                                Viewers can only read.
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="form-check">
-                            <input asp-for="IsActive" class="form-check-input" />
-                            <label asp-for="IsActive" class="form-check-label"></label>
-                        </div>
-                    </div>
+            <div class="form-group">
+                <label asp-for="LastName"></label>
+                <input asp-for="LastName" class="form-control custom-input" />
+                <span asp-validation-for="LastName" class="text-danger small"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" class="form-control custom-input" type="email" />
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="NewPassword"></label>
+                <input asp-for="NewPassword" class="form-control custom-input" type="password"
+                       placeholder="Leeg laten om huidig wachtwoord te behouden" />
+                <span asp-validation-for="NewPassword" class="text-danger small"></span>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="content-card mb-4">
+        <div class="details-section-title">Rechten</div>
+
+        <div class="row g-4">
+            <div class="col-md-7">
+                <label asp-for="Role" class="form-label fw-semibold"></label>
+                <select asp-for="Role" class="form-select" id="roleSelect">
+                    <option value="Viewer">Viewer — enkel lezen, binnen zijn scope</option>
+                    <option value="Editor">Editor — mag wijzigen, binnen zijn scope</option>
+                    <option value="Admin">Admin — onbeperkt, kan alles beheren</option>
+                </select>
+                <div class="text-secondary small mt-2">
+                    Viewer en Editor zien enkel de departementen uit hun groepen en
+                    individuele uitzonderingen hieronder. Admin ziet en beheert alles.
                 </div>
             </div>
 
-            <div class="form-actions mt-4">
-                <a asp-action="Index" class="btn btn-light custom-btn">Cancel</a>
-                <button type="submit" class="btn btn-primary custom-btn">
-                    <i class="bi bi-check-lg"></i> Save Changes
+            <div class="col-md-5">
+                <label class="form-label fw-semibold d-block">Status</label>
+                <div class="d-flex flex-column gap-2 mt-2">
+                    <div class="form-check form-switch">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input asp-for="CanViewHistory" class="form-check-input" />
+                        <label asp-for="CanViewHistory" class="form-check-label"></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-card mb-4" id="groupsSection">
+        <div class="details-section-title">Toegangsgroepen</div>
+        <div class="text-secondary small mb-3">
+            Lidmaatschap bepaalt welke departementen/locaties deze gebruiker ziet.
+            Een gebruiker kan in meerdere groepen tegelijk zitten.
+        </div>
+
+        @if (!Model.AvailableGroups.Any())
+        {
+            <div class="empty-notes">
+                Nog geen groepen aangemaakt. Ga naar
+                <a asp-controller="AccessGroups" asp-action="Index">Toegangsgroepen</a>
+                om er een aan te maken.
+            </div>
+        }
+        else
+        {
+            <div class="row g-2">
+                @foreach (var group in Model.AvailableGroups)
+                {
+                    var isChecked = Model.AccessGroupIds.Contains(int.Parse(group.Value));
+                    <div class="col-md-6">
+                        <label class="d-flex align-items-center gap-2 p-3 mb-0"
+                               style="border:1px solid var(--color-border);border-radius:var(--radius-md);cursor:pointer;background:var(--color-surface);">
+                            <input type="checkbox" class="form-check-input m-0 flex-shrink-0"
+                                   name="AccessGroupIds" value="@group.Value"
+                                   checked="@isChecked" />
+                            <span style="font-size:13.5px;font-weight:600">@group.Text</span>
+                        </label>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="form-actions mb-4">
+        <a asp-action="Index" class="btn btn-light custom-btn">Cancel</a>
+        <button type="submit" class="btn btn-primary custom-btn">
+            <i class="bi bi-check-lg"></i> Save Changes
+        </button>
+    </div>
+
+</form>
+
+<div class="content-card" id="individualSection">
+    <div class="details-section-title">Individuele uitzonderingen</div>
+    <div class="text-secondary small mb-3">
+        Los van groepen — bv. deze ene persoon extra toegang geven tot één
+        departement, of tot een volledige locatie.
+    </div>
+
+    @if (!Model.IndividualGrants.Any())
+    {
+        <div class="empty-notes mb-4">Geen individuele uitzonderingen.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2 mb-4">
+            @foreach (var grant in Model.IndividualGrants)
+            {
+                var label = grant.DepartmentId.HasValue
+                    ? $"{grant.DepartmentName} ({grant.DepartmentLocationName})"
+                    : $"{grant.LocationName} (volledige locatie)";
+
+                <div class="d-flex justify-content-between align-items-center p-3"
+                     style="border:1px solid var(--color-border);border-radius:var(--radius-md)">
+                    <span style="font-size:13.5px">
+                        @label
+                        @if (!grant.DepartmentId.HasValue)
+                        {
+                            <span class="status-badge status-maintenance ms-2" style="font-size:.7rem">locatie</span>
+                        }
+                    </span>
+                    <form asp-action="RemoveGrant" method="post"
+                          onsubmit="return confirm('Deze uitzondering verwijderen?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="grantId" value="@grant.Id" />
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">
+                Departement toevoegen
+            </label>
+            <form asp-action="AddDepartmentGrant" method="post" class="d-flex gap-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <select name="departmentId" class="form-select">
+                    @foreach (var dept in Model.AvailableDepartments)
+                    {
+                        <option value="@dept.Value">@dept.Text</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-light custom-btn flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i>
                 </button>
-            </div>
-
-        </form>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">
+                Volledige locatie toevoegen
+            </label>
+            <form asp-action="AddLocationGrant" method="post" class="d-flex gap-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <select name="locationId" class="form-select">
+                    @foreach (var loc in Model.AvailableLocations)
+                    {
+                        <option value="@loc.Value">@loc.Text</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-light custom-btn flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        const roleSelect        = document.getElementById('roleSelect');
+        const groupsSection     = document.getElementById('groupsSection');
+        const individualSection = document.getElementById('individualSection');
+
+        function toggleScopeSections() {
+            const isAdmin = roleSelect.value === 'Admin';
+            groupsSection.style.display     = isAdmin ? 'none' : '';
+            individualSection.style.display = isAdmin ? 'none' : '';
+        }
+
+        roleSelect.addEventListener('change', toggleScopeSections);
+        toggleScopeSections();
+    </script>
 }

@@ -8,5 +8,6 @@ public interface IAuditService
         int entityId,
         string entityLabel,
         object? oldValues = null,
-        object? newValues = null);
+        object? newValues = null,
+        int? departmentId = null);
 }

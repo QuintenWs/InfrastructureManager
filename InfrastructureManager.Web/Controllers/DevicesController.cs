@@ -47,7 +47,7 @@ public class DevicesController : Controller
         string? search, DeviceType? deviceType,
         DeviceStatus? status, int? locationId, int? departmentId, int page = 1)
     {
-        var allowed = await _userAccessService.GetAccessibleLocationIdsAsync(User);
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var filter = new DeviceFilter
         {
             Search       = search,
@@ -55,7 +55,7 @@ public class DevicesController : Controller
             Status       = status,
             LocationId   = locationId,
             DepartmentId = departmentId,
-            AllowedLocationIds = allowed
+            AllowedDepartmentIds = allowed
         };
 
         var paged = await _deviceService.FilterPagedAsync(filter, page, PageSize);
@@ -75,7 +75,7 @@ public class DevicesController : Controller
             {
                 Id             = x.Id,
                 Name           = x.Name,
-                IpAddress      = x.IpAddress, // convenience field from field values
+                IpAddress      = x.IpAddress,
                 DeviceType     = x.DeviceType,
                 Status         = x.Status,
                 LocationName   = x.LocationName,
@@ -121,7 +121,9 @@ public class DevicesController : Controller
             DeviceType = item.DeviceType, Status = item.Status, Notes = item.Notes,
             TypeFields = typeFields?.Fields.Where(f => !string.IsNullOrWhiteSpace(f.CurrentValue)).ToList() ?? new(),
             MaintenanceLogs = maintenanceLogs.ToList(),
-            Documents = documents.ToList()
+            Documents = documents.ToList(),
+            CanEdit = await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId),
+            CanViewHistory = await _userAccessService.CanViewHistoryAsync(User)
         };
 
         return View(vm);
@@ -132,15 +134,24 @@ public class DevicesController : Controller
     {
         var result = await _deviceDocumentService.GetAsync(id);
         if (result == null) return NotFound();
-        var (data, contentType, fileName) = result.Value;
+        var (data, contentType, fileName, departmentId) = result.Value;
+
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, departmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         return File(data, contentType, fileName);
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     [RequestSizeLimit(50_000_000)]
     public async Task<IActionResult> UploadDocument(int deviceId, string? caption)
     {
+        var device = await _deviceService.GetByIdAsync(deviceId);
+        if (device == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, device.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         var files = Request.Form.Files;
         if (files == null || files.Count == 0)
         {
@@ -158,18 +169,26 @@ public class DevicesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> DeleteDocument(int documentId, int deviceId)
     {
+        var actualDepartmentId = await _deviceDocumentService.GetDepartmentIdAsync(documentId);
+        if (actualDepartmentId == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, actualDepartmentId.Value))
+            return RedirectToAction("AccessDenied", "Auth");
+
         await _deviceDocumentService.DeleteAsync(documentId);
         TempData["Success"] = "Document verwijderd.";
         return RedirectToAction(nameof(Details), new { id = deviceId });
     }
 
     [HttpGet]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Create(int? departmentId)
     {
+        if (departmentId.HasValue && !await _userAccessService.CanEditDepartmentAsync(User, departmentId.Value))
+            return RedirectToAction("AccessDenied", "Auth");
+
         var vm = new CreateDeviceViewModel
         {
             DepartmentId = departmentId ?? 0,
@@ -185,9 +204,12 @@ public class DevicesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Create(CreateDeviceViewModel vm)
     {
+        if (!await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
@@ -213,11 +235,13 @@ public class DevicesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Edit(int id)
     {
         var item = await _deviceService.GetByIdAsync(id);
         if (item == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
 
         var typeFields = await _deviceTypeService.GetFieldsAsync(item.DeviceType, id);
 
@@ -239,9 +263,19 @@ public class DevicesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Edit(UpdateDeviceViewModel vm)
     {
+        var original = await _deviceService.GetByIdAsync(vm.Id);
+        if (original == null) return NotFound();
+
+        // Zowel het huidige als het (eventueel nieuwe) departement moeten
+        // binnen de scope van de gebruiker vallen — anders zou een Editor
+        // een toestel naar een departement buiten zijn bereik kunnen verplaatsen.
+        if (!await _userAccessService.CanEditDepartmentAsync(User, original.DepartmentId) ||
+            !await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
@@ -270,17 +304,28 @@ public class DevicesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> Delete(int id)
     {
+        var item = await _deviceService.GetByIdAsync(id);
+        if (item == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, item.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         await _deviceService.DeleteAsync(id);
         TempData["Success"] = "Device deleted.";
         return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> AddMaintenanceLog(int deviceId, string note)
     {
+        var device = await _deviceService.GetByIdAsync(deviceId);
+        if (device == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, device.DepartmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         if (string.IsNullOrWhiteSpace(note))
         {
             TempData["Error"] = "Note cannot be empty.";
@@ -292,9 +337,14 @@ public class DevicesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> DeleteMaintenanceLog(int logId, int deviceId)
     {
+        var actualDepartmentId = await _maintenanceLogService.GetDepartmentIdForLogAsync(logId);
+        if (actualDepartmentId == null) return NotFound();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, actualDepartmentId.Value))
+            return RedirectToAction("AccessDenied", "Auth");
+
         await _maintenanceLogService.DeleteAsync(logId);
         TempData["Success"] = "Note deleted.";
         return RedirectToAction(nameof(Details), new { id = deviceId });
@@ -303,6 +353,9 @@ public class DevicesController : Controller
     [HttpGet]
     public async Task<IActionResult> GetNetworksByDepartment(int departmentId)
     {
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, departmentId))
+            return Forbid();
+
         var networks = await GetNetworksForDepartmentAsync(departmentId);
         return Json(networks.Select(n => new { value = n.Value, text = n.Text }));
     }
@@ -310,13 +363,25 @@ public class DevicesController : Controller
     [HttpGet]
     public async Task<IActionResult> GetTypeFields(DeviceType deviceType, int? deviceId)
     {
+        if (deviceId.HasValue)
+        {
+            var device = await _deviceService.GetByIdAsync(deviceId.Value);
+            if (device == null) return NotFound();
+            if (!await _userAccessService.CanAccessDepartmentAsync(User, device.DepartmentId))
+                return Forbid();
+        }
+
         var result = await _deviceTypeService.GetFieldsAsync(deviceType, deviceId);
         return Json(result?.Fields ?? Enumerable.Empty<DeviceTypeFieldDto>());
     }
 
     private async Task<IEnumerable<SelectListItem>> GetDepartmentsAsync()
     {
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var items = await _departmentService.GetAllAsync();
+        if (allowed != null)
+            items = items.Where(x => allowed.Contains(x.Id));
+
         return items.Select(x => new SelectListItem
         {
             Value = x.Id.ToString(),
@@ -328,7 +393,7 @@ public class DevicesController : Controller
     {
         if (departmentId <= 0) return Enumerable.Empty<SelectListItem>();
         var networks = await _networkService.FilterAsync(
-            new NetworkFilter { DepartmentId = departmentId });
+            new InfrastructureManager.Application.Filters.NetworkFilter { DepartmentId = departmentId });
         return networks.Select(x => new SelectListItem
         {
             Value = x.Id.ToString(),
@@ -338,13 +403,19 @@ public class DevicesController : Controller
 
     private async Task<IEnumerable<SelectListItem>> GetLocationsAsync()
     {
+        var allowedLocationIds = await _userAccessService.GetAccessibleLocationIdsAsync(User);
         var departments = await _departmentService.GetAllAsync();
-        return departments
+        var groups = departments
             .GroupBy(x => x.LocationName)
-            .Select(g => new SelectListItem
-            {
-                Value = g.First().LocationId.ToString(),
-                Text  = g.Key
-            });
+            .Select(g => new { LocationId = g.First().LocationId, LocationName = g.Key });
+
+        if (allowedLocationIds != null)
+            groups = groups.Where(g => allowedLocationIds.Contains(g.LocationId));
+
+        return groups.Select(g => new SelectListItem
+        {
+            Value = g.LocationId.ToString(),
+            Text  = g.LocationName
+        });
     }
 }

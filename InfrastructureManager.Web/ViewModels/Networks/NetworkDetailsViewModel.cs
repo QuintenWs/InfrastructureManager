@@ -23,4 +23,8 @@ public class NetworkDetailsViewModel
     public string? Notes               { get; set; }
     public int    DeviceCount          { get; set; }
     public IEnumerable<DeviceDto> Devices { get; set; } = new List<DeviceDto>();
+
+    /// <summary>True als de ingelogde gebruiker dit netwerk mag bewerken
+    /// (Admin, of Editor binnen zijn departement-scope).</summary>
+    public bool CanEdit { get; set; }
 }

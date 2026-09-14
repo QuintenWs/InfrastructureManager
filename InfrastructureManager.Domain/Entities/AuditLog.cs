@@ -21,6 +21,17 @@ public class AuditLog
     /// <summary>Human-readable label, e.g. the device name</summary>
     public string EntityLabel { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Departement waartoe deze actie behoort, indien van toepassing —
+    /// gebruikt om History te kunnen scopen voor niet-Admins. Bewust een
+    /// losse int zonder FK/navigatie (zelfde denormalisatie-principe als
+    /// EntityLabel): een audit-record blijft een historische snapshot, ook
+    /// als het departement later hernoemd of verwijderd wordt. Null voor
+    /// systeembrede acties (Import, apparaattype-beheer, Location zelf) —
+    /// die blijven altijd Admin-only.
+    /// </summary>
+    public int? DepartmentId { get; set; }
+
     /// <summary>JSON snapshot before the change (null for CREATE)</summary>
     public string? OldValues { get; set; }
 

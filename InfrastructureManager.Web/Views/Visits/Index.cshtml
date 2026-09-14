@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Bezoeken";
+    var canEdit = User.IsEditorOrAdmin();
 }
 
 <div class="page-header">
@@ -9,7 +10,7 @@
         <div class="page-subtitle">Opvolging ter plaatse</div>
         <h1 class="page-heading">Bezoeken &amp; Actiepunten</h1>
     </div>
-    @if (Model.SelectedDepartmentId.HasValue)
+    @if (Model.SelectedDepartmentId.HasValue && canEdit)
     {
         <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId"
            class="btn btn-primary custom-btn">
@@ -92,7 +93,7 @@
                             <td><partial name="_ActionItemStatusBadge" model="item.Status" /></td>
                             <td class="text-secondary small">@item.CreatedAt.ToString("dd/MM/yyyy")</td>
                             <td class="text-end">
-                                @if (item.Status != "InProgress")
+                                @if (canEdit && item.Status != "InProgress")
                                 {
                                     <form asp-action="SetInProgress" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
@@ -140,7 +141,7 @@ else
                                     <td><partial name="_ActionItemStatusBadge" model="item.Status" /></td>
                                     <td class="text-secondary small">@item.CreatedAt.ToString("dd/MM/yyyy")</td>
                                     <td class="text-end">
-                                        @if (item.Status != "InProgress")
+                                        @if (canEdit && item.Status != "InProgress")
                                         {
                                             <form asp-action="SetInProgress" method="post" class="d-inline">
                                                 @Html.AntiForgeryToken()
@@ -201,10 +202,13 @@ else
             <div class="content-card">
                 <div class="details-section-title">@Model.DepartmentLabel</div>
                 <div class="quick-actions">
-                    <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId"
-                       class="btn btn-primary custom-btn">
-                        <i class="bi bi-plus-lg"></i> Nieuw bezoek
-                    </a>
+                    @if (canEdit)
+                    {
+                        <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId"
+                           class="btn btn-primary custom-btn">
+                            <i class="bi bi-plus-lg"></i> Nieuw bezoek
+                        </a>
+                    }
                     <a asp-controller="Departments" asp-action="Details" asp-route-id="@Model.SelectedDepartmentId"
                        class="btn btn-light custom-btn">
                         <i class="bi bi-building"></i> Naar departement

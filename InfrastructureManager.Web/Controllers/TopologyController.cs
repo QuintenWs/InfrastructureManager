@@ -30,8 +30,12 @@ public class TopologyController : Controller
         if (departmentId.HasValue && !await _userAccessService.CanAccessDepartmentAsync(User, departmentId.Value))
         return RedirectToAction("AccessDenied", "Auth");
 
-        var departments = await _context.Departments
-            .Include(d => d.Location)
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+        var deptQuery = _context.Departments.Include(d => d.Location).AsQueryable();
+        if (allowed != null)
+            deptQuery = deptQuery.Where(d => allowed.Contains(d.Id));
+
+        var departments = await deptQuery
             .OrderBy(d => d.Location.Name).ThenBy(d => d.Name)
             .Select(d => new SelectListItem
             {
@@ -42,6 +46,11 @@ public class TopologyController : Controller
 
         ViewBag.Departments  = departments;
         ViewBag.DepartmentId = departmentId;
+
+        // Per het bekeken departement — niet globaal via de rol — want een
+        // Editor mag enkel tekenen/opslaan binnen zijn eigen scope.
+        ViewBag.CanEdit = departmentId.HasValue &&
+            await _userAccessService.CanEditDepartmentAsync(User, departmentId.Value);
 
         if (!departmentId.HasValue) return View(null as object);
 
@@ -55,7 +64,7 @@ public class TopologyController : Controller
     {
         if (!await _userAccessService.CanAccessDepartmentAsync(User, departmentId))
         return Forbid();
-        
+
         var topology = await _topologyService.GetByDepartmentAsync(departmentId);
         if (topology == null) return NotFound();
 
@@ -67,10 +76,12 @@ public class TopologyController : Controller
 
     /// <summary>Save drag-and-drop layout. Called via AJAX after each move.</summary>
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> SaveLayout([FromBody] SaveLayoutRequest request)
     {
         if (request.DepartmentId <= 0) return BadRequest();
+        if (!await _userAccessService.CanEditDepartmentAsync(User, request.DepartmentId))
+            return Forbid();
 
         await _topologyService.SaveLayoutAsync(
             request.DepartmentId,
@@ -82,9 +93,12 @@ public class TopologyController : Controller
 
     /// <summary>Reset layout to automatic. Deletes saved positions.</summary>
     [HttpPost]
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = AppRoles.AdminOrEditor)]
     public async Task<IActionResult> ResetLayout(int departmentId)
     {
+        if (!await _userAccessService.CanEditDepartmentAsync(User, departmentId))
+            return RedirectToAction("AccessDenied", "Auth");
+
         await _topologyService.ResetLayoutAsync(departmentId);
         TempData["Success"] = "Topology layout reset to automatic.";
         return RedirectToAction(nameof(Index), new { departmentId });

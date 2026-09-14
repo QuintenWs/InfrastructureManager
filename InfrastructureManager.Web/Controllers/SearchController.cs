@@ -1,3 +1,4 @@
+using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Infrastructure.Data;
 using InfrastructureManager.Web.ViewModels.Search;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +10,13 @@ namespace InfrastructureManager.Web.Controllers;
 [Authorize]
 public class SearchController : Controller
 {
-    private readonly AppDbContext _context;
+    private readonly AppDbContext       _context;
+    private readonly IUserAccessService _userAccessService;
 
-    public SearchController(AppDbContext context)
+    public SearchController(AppDbContext context, IUserAccessService userAccessService)
     {
-        _context = context;
+        _context           = context;
+        _userAccessService = userAccessService;
     }
 
     [HttpGet]
@@ -25,10 +28,14 @@ public class SearchController : Controller
         q = q.Trim();
         var results = new List<SearchResultViewModel>();
 
+        // Dit was voordien de grootste blootstelling: de zoekbalk staat op
+        // elke pagina, en doorzocht altijd álle departementen, ongeacht
+        // restrictie. Elke deelquery hieronder wordt nu expliciet gescoped.
+        var allowedDepartmentIds = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+        var allowedLocationIds   = await _userAccessService.GetAccessibleLocationIdsAsync(User);
+
         // ── Devices ───────────────────────────────────────────────────────────
-        // IpAddress, Hostname, Vendor, Model, SerialNumber are now stored in
-        // DeviceFieldValues — search on name, department, location, and field values
-        var devices = await _context.Devices
+        var deviceQuery = _context.Devices
             .Include(d => d.Department)
             .Include(d => d.Location)
             .Include(d => d.Network)
@@ -38,13 +45,15 @@ public class SearchController : Controller
                 d.Department.Name.Contains(q) ||
                 d.Location.Name.Contains(q) ||
                 d.FieldValues.Any(v => v.Value.Contains(q)))
-            .OrderBy(d => d.Name)
-            .Take(20)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            deviceQuery = deviceQuery.Where(d => allowedDepartmentIds.Contains(d.DepartmentId));
+
+        var devices = await deviceQuery.OrderBy(d => d.Name).Take(20).ToListAsync();
 
         results.AddRange(devices.Select(d =>
         {
-            // Find the best matching field value to show as detail
             var matchingField = d.FieldValues
                 .FirstOrDefault(v => v.Value.Contains(q, StringComparison.OrdinalIgnoreCase));
 
@@ -66,7 +75,7 @@ public class SearchController : Controller
         }));
 
         // ── Networks ──────────────────────────────────────────────────────────
-        var networks = await _context.Networks
+        var networkQuery = _context.Networks
             .Include(n => n.Department)
                 .ThenInclude(d => d.Location)
             .Where(n =>
@@ -74,9 +83,12 @@ public class SearchController : Controller
                 n.NetworkAddress.Contains(q) ||
                 n.Gateway.Contains(q)        ||
                 (n.IspName != null && n.IspName.Contains(q)))
-            .OrderBy(n => n.Name)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            networkQuery = networkQuery.Where(n => allowedDepartmentIds.Contains(n.DepartmentId));
+
+        var networks = await networkQuery.OrderBy(n => n.Name).Take(10).ToListAsync();
 
         results.AddRange(networks.Select(n => new SearchResultViewModel
         {
@@ -91,14 +103,17 @@ public class SearchController : Controller
         }));
 
         // ── Locations ─────────────────────────────────────────────────────────
-        var locations = await _context.Locations
+        var locationQuery = _context.Locations
             .Where(l =>
                 l.Name.Contains(q) ||
                 l.City.Contains(q) ||
                 l.Country.Contains(q))
-            .OrderBy(l => l.Name)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedLocationIds != null)
+            locationQuery = locationQuery.Where(l => allowedLocationIds.Contains(l.Id));
+
+        var locations = await locationQuery.OrderBy(l => l.Name).Take(10).ToListAsync();
 
         results.AddRange(locations.Select(l => new SearchResultViewModel
         {
@@ -113,15 +128,18 @@ public class SearchController : Controller
         }));
 
         // ── Departments ───────────────────────────────────────────────────────
-        var departments = await _context.Departments
+        var departmentQuery = _context.Departments
             .Include(d => d.Location)
             .Where(d =>
                 d.Name.Contains(q)    ||
                 d.Address.Contains(q) ||
                 (d.Description != null && d.Description.Contains(q)))
-            .OrderBy(d => d.Name)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            departmentQuery = departmentQuery.Where(d => allowedDepartmentIds.Contains(d.Id));
+
+        var departments = await departmentQuery.OrderBy(d => d.Name).Take(10).ToListAsync();
 
         results.AddRange(departments.Select(d => new SearchResultViewModel
         {
@@ -136,7 +154,7 @@ public class SearchController : Controller
         }));
 
         // ── Contacts ──────────────────────────────────────────────────────────
-        var contacts = await _context.Contacts
+        var contactQuery = _context.Contacts
             .Include(c => c.Department).ThenInclude(d => d.Location)
             .Where(c =>
                 c.FirstName.Contains(q) ||
@@ -144,9 +162,12 @@ public class SearchController : Controller
                 c.Email.Contains(q)     ||
                 (c.Role != null && c.Role.Contains(q)) ||
                 c.Department.Name.Contains(q))
-            .OrderBy(c => c.LastName)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            contactQuery = contactQuery.Where(c => allowedDepartmentIds.Contains(c.DepartmentId));
+
+        var contacts = await contactQuery.OrderBy(c => c.LastName).Take(10).ToListAsync();
 
         results.AddRange(contacts.Select(c => new SearchResultViewModel
         {
@@ -160,13 +181,16 @@ public class SearchController : Controller
             Action     = "Details"
         }));
 
-        // ── Actiepunten (Bezoeken) — inclusief opgeloste, voor historisch opzoeken ──
-        var actionItems = await _context.ActionItems
+        // ── Actiepunten (Bezoeken) ────────────────────────────────────────────
+        var actionItemQuery = _context.ActionItems
             .Include(a => a.Department).ThenInclude(d => d.Location)
             .Where(a => a.Description.Contains(q))
-            .OrderByDescending(a => a.CreatedAt)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            actionItemQuery = actionItemQuery.Where(a => allowedDepartmentIds.Contains(a.DepartmentId));
+
+        var actionItems = await actionItemQuery.OrderByDescending(a => a.CreatedAt).Take(10).ToListAsync();
 
         results.AddRange(actionItems.Select(a => new SearchResultViewModel
         {
@@ -181,12 +205,15 @@ public class SearchController : Controller
         }));
 
         // ── Bezoeken — algemene opmerkingen ───────────────────────────────────
-        var visits = await _context.SiteVisits
+        var visitQuery = _context.SiteVisits
             .Include(v => v.Department).ThenInclude(d => d.Location)
             .Where(v => v.Summary != null && v.Summary.Contains(q))
-            .OrderByDescending(v => v.VisitDate)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            visitQuery = visitQuery.Where(v => allowedDepartmentIds.Contains(v.DepartmentId));
+
+        var visits = await visitQuery.OrderByDescending(v => v.VisitDate).Take(10).ToListAsync();
 
         results.AddRange(visits.Select(v => new SearchResultViewModel
         {
@@ -201,12 +228,15 @@ public class SearchController : Controller
         }));
 
         // ── Controles — algemene opmerkingen ──────────────────────────────────
-        var checks = await _context.InventoryChecks
+        var checkQuery = _context.InventoryChecks
             .Include(c => c.Department).ThenInclude(d => d.Location)
             .Where(c => c.Notes != null && c.Notes.Contains(q))
-            .OrderByDescending(c => c.CheckDate)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            checkQuery = checkQuery.Where(c => allowedDepartmentIds.Contains(c.DepartmentId));
+
+        var checks = await checkQuery.OrderByDescending(c => c.CheckDate).Take(10).ToListAsync();
 
         results.AddRange(checks.Select(c => new SearchResultViewModel
         {
@@ -221,12 +251,15 @@ public class SearchController : Controller
         }));
 
         // ── Controles — opmerking per toestel ─────────────────────────────────
-        var checkItems = await _context.InventoryCheckItems
+        var checkItemQuery = _context.InventoryCheckItems
             .Include(i => i.InventoryCheck).ThenInclude(c => c.Department).ThenInclude(d => d.Location)
             .Where(i => i.Remark != null && i.Remark.Contains(q))
-            .OrderByDescending(i => i.InventoryCheck.CheckDate)
-            .Take(10)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            checkItemQuery = checkItemQuery.Where(i => allowedDepartmentIds.Contains(i.InventoryCheck.DepartmentId));
+
+        var checkItems = await checkItemQuery.OrderByDescending(i => i.InventoryCheck.CheckDate).Take(10).ToListAsync();
 
         results.AddRange(checkItems.Select(i => new SearchResultViewModel
         {

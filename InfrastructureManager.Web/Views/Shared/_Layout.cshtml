@@ -1,7 +1,9 @@
 @using Microsoft.AspNetCore.Identity
 @using InfrastructureManager.Infrastructure.Identity
+@using InfrastructureManager.Application.Interfaces.Services
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser>   UserManager
+@inject IUserAccessService             UserAccessService
 
 <!DOCTYPE html>
 <html lang="en">
@@ -29,7 +31,8 @@
     var displayName = user != null
         ? $"{user.FirstName} {user.LastName}".Trim()
         : string.Empty;
-    var isAdmin = User.IsInRole(AppRoles.Admin);
+    var isAdmin        = User.IsInRole(AppRoles.Admin);
+    var canViewHistory = SignInManager.IsSignedIn(User) && await UserAccessService.CanViewHistoryAsync(User);
 }
 
 <div class="app-layout" id="appLayout">
@@ -113,6 +116,16 @@
                 <span>Contacts</span>
             </a>
 
+            @if (canViewHistory)
+            {
+                <a asp-controller="History" asp-action="Index"
+                   class="nav-item @(currentController == "History" ? "active" : "")"
+                   title="Geschiedenis">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Geschiedenis</span>
+                </a>
+            }
+
             @if (isAdmin)
             {
                 <div class="sidebar-section-label">Admin</div>
@@ -122,6 +135,13 @@
                    title="Users">
                     <i class="bi bi-person-gear"></i>
                     <span>Users</span>
+                </a>
+
+                <a asp-controller="AccessGroups" asp-action="Index"
+                   class="nav-item @(currentController == "AccessGroups" ? "active" : "")"
+                   title="Toegangsgroepen">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Toegangsgroepen</span>
                 </a>
 
                 <a asp-controller="Import" asp-action="Index"
@@ -136,13 +156,6 @@
                    title="Device Types">
                     <i class="bi bi-cpu"></i>
                     <span>Device Types</span>
-                </a>
-
-                <a asp-controller="History" asp-action="Index"
-                   class="nav-item @(currentController == "History" ? "active" : "")"
-                   title="Geschiedenis">
-                    <i class="bi bi-clock-history"></i>
-                    <span>Geschiedenis</span>
                 </a>
 
                 <a asp-controller="DevTools" asp-action="Index"
@@ -181,7 +194,7 @@
                     @if (!isAdmin)
                     {
                         <span class="status-badge status-offline" style="font-size:.7rem">
-                            Viewer
+                            @(User.IsInRole(AppRoles.Editor) ? "Editor" : "Viewer")
                         </span>
                     }
                     <span class="text-secondary small d-none d-lg-inline">@displayName</span>

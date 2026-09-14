@@ -23,4 +23,11 @@ public class DeviceDetailsViewModel
 
     public IEnumerable<MaintenanceLogDto> MaintenanceLogs { get; set; }
         = new List<MaintenanceLogDto>();
+
+    /// <summary>True als de ingelogde gebruiker dit toestel mag bewerken
+    /// (Admin, of Editor binnen zijn departement-scope).</summary>
+    public bool CanEdit { get; set; }
+
+    /// <summary>True als de ingelogde gebruiker de audit-geschiedenis mag bekijken.</summary>
+    public bool CanViewHistory { get; set; }
 }

@@ -21,7 +21,7 @@
         </div>
     </div>
     <div class="d-flex gap-2">
-        @if (User.IsInRole(AppRoles.Admin))
+        @if (Model.CanEdit)
         {
             <a asp-action="Edit" asp-route-id="@Model.Id"
                class="btn btn-primary custom-btn">
@@ -156,7 +156,7 @@
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="text-secondary small">@((doc.SizeBytes / 1024.0).ToString("N0")) KB</span>
-                                @if (User.IsInRole(AppRoles.Admin))
+                                @if (Model.CanEdit)
                                 {
                                     <form asp-action="DeleteDocument" method="post" onsubmit="return confirm('Document @doc.FileName verwijderen?');">
                                         @Html.AntiForgeryToken()
@@ -171,7 +171,7 @@
                 </div>
             }
 
-            @if (User.IsInRole(AppRoles.Admin))
+            @if (Model.CanEdit)
             {
                 <form asp-action="UploadDocument" method="post" enctype="multipart/form-data">
                     @Html.AntiForgeryToken()
@@ -210,7 +210,7 @@
                                     </span>
                                 </div>
                                 <div class="maintenance-note">@log.Note</div>
-                                @if (User.IsInRole(AppRoles.Admin))
+                                @if (Model.CanEdit)
                                 {
                                     <form asp-action="DeleteMaintenanceLog" method="post"
                                           onsubmit="return confirm('Delete this note?');"
@@ -231,19 +231,22 @@
                 </div>
             }
 
-            <form asp-action="AddMaintenanceLog" method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="deviceId" value="@Model.Id" />
-                <div class="d-flex gap-2">
-                    <input type="text" name="note"
-                           class="form-control custom-input flex-grow-1"
-                           placeholder="Add maintenance note..."
-                           maxlength="1000" required />
-                    <button type="submit" class="btn btn-primary custom-btn">
-                        <i class="bi bi-plus-lg"></i> Add
-                    </button>
-                </div>
-            </form>
+            @if (Model.CanEdit)
+            {
+                <form asp-action="AddMaintenanceLog" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="deviceId" value="@Model.Id" />
+                    <div class="d-flex gap-2">
+                        <input type="text" name="note"
+                               class="form-control custom-input flex-grow-1"
+                               placeholder="Add maintenance note..."
+                               maxlength="1000" required />
+                        <button type="submit" class="btn btn-primary custom-btn">
+                            <i class="bi bi-plus-lg"></i> Add
+                        </button>
+                    </div>
+                </form>
+            }
         </div>
 
     </div>
@@ -252,7 +255,7 @@
         <div class="content-card">
             <div class="details-section-title">Quick Actions</div>
             <div class="quick-actions">
-                @if (User.IsInRole(AppRoles.Admin))
+                @if (Model.CanEdit)
                 {
                     <a asp-action="Edit" asp-route-id="@Model.Id"
                        class="btn btn-primary custom-btn">
@@ -266,6 +269,9 @@
                             <i class="bi bi-trash"></i> Delete
                         </button>
                     </form>
+                }
+                @if (Model.CanViewHistory)
+                {
                     <a asp-controller="History" asp-action="Index"
                        asp-route-EntityType="Device" asp-route-EntityId="@Model.Id"
                        class="btn btn-light custom-btn">

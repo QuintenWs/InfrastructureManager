@@ -1,6 +1,5 @@
 using InfrastructureManager.Application.DTOs.History;
 using InfrastructureManager.Application.Interfaces.Services;
-using InfrastructureManager.Infrastructure.Identity;
 using InfrastructureManager.Web.ViewModels.History;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,22 +8,31 @@ using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
-// Full audit trail with user attribution across the whole system — this is
-// an administrative capability, same tier as Users/Import/DeviceTypes.
-[Authorize(Roles = AppRoles.Admin)]
+// Niet langer hard Admin-only: een gebruiker (of een groep waarin hij zit)
+// kan het History-recht individueel toegekend krijgen (zie IUserAccessService.
+// CanViewHistoryAsync). Admins hebben dit recht altijd. De resultaten blijven
+// hoe dan ook beperkt tot de departementen die de gebruiker al mag zien.
+[Authorize]
 public class HistoryController : Controller
 {
-    private readonly IHistoryService _historyService;
+    private readonly IHistoryService    _historyService;
+    private readonly IUserAccessService _userAccessService;
     private const int PageSize = 20;
 
-    public HistoryController(IHistoryService historyService)
+    public HistoryController(IHistoryService historyService, IUserAccessService userAccessService)
     {
-        _historyService = historyService;
+        _historyService    = historyService;
+        _userAccessService = userAccessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(HistoryFilterViewModel filter)
     {
+        if (!await _userAccessService.CanViewHistoryAsync(User))
+            return RedirectToAction("AccessDenied", "Auth");
+
+        var allowedDepartmentIds = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+
         var result = await _historyService.SearchAsync(new HistoryFilter
         {
             UserId     = filter.UserId,
@@ -35,10 +43,10 @@ public class HistoryController : Controller
             ToDate     = filter.ToDate,
             Page       = filter.Page,
             PageSize   = PageSize
-        });
+        }, allowedDepartmentIds);
 
-        var users = await _historyService.GetUsersAsync();
-        var types = await _historyService.GetEntityTypesAsync();
+        var users = await _historyService.GetUsersAsync(allowedDepartmentIds);
+        var types = await _historyService.GetEntityTypesAsync(allowedDepartmentIds);
 
         var vm = new HistoryIndexViewModel
         {

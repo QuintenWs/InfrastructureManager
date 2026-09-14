@@ -30,7 +30,8 @@ public class AuditService : IAuditService
         int entityId,
         string entityLabel,
         object? oldValues = null,
-        object? newValues = null)
+        object? newValues = null,
+        int? departmentId = null)
     {
         var httpUser = _httpContextAccessor.HttpContext?.User;
 
@@ -63,6 +64,7 @@ public class AuditService : IAuditService
             EntityType      = entityType,
             EntityId        = entityId,
             EntityLabel     = entityLabel,
+            DepartmentId    = departmentId,
             OldValues       = oldValues != null ? JsonSerializer.Serialize(oldValues, options) : null,
             NewValues       = newValues != null ? JsonSerializer.Serialize(newValues, options) : null,
             CreatedAt       = DateTime.UtcNow

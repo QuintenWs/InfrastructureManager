@@ -10,7 +10,7 @@
         <div class="page-subtitle">Inventariscontrole</div>
         <h1 class="page-heading">Controles</h1>
     </div>
-    @if (Model.SelectedDepartmentId.HasValue)
+    @if (Model.SelectedDepartmentId.HasValue && User.IsEditorOrAdmin())
     {
         <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId" class="btn btn-primary custom-btn">
             <i class="bi bi-clipboard-check"></i> Nieuwe controle

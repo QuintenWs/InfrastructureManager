@@ -9,12 +9,15 @@
         <div class="page-subtitle">Responsible persons</div>
         <h1 class="page-heading">Contacts</h1>
     </div>
-    <div>
-        <a asp-action="Create" class="btn btn-primary custom-btn">
-            <i class="bi bi-plus-lg"></i>
-            Add Contact
-        </a>
-    </div>
+    @if (User.IsEditorOrAdmin())
+    {
+        <div>
+            <a asp-action="Create" class="btn btn-primary custom-btn">
+                <i class="bi bi-plus-lg"></i>
+                Add Contact
+            </a>
+        </div>
+    }
 </div>
 
 <div class="content-card mb-4">
@@ -82,14 +85,17 @@
                         <td class="text-end">
                             <div class="table-actions">
                                 <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-light">View</a>
-                                <a asp-action="Edit"    asp-route-id="@item.Id" class="btn btn-sm btn-primary">Edit</a>
-                                <form asp-action="Delete" asp-route-id="@item.Id" method="post"
-                                      onsubmit="return confirm('Delete @item.FullName?');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                @if (User.IsEditorOrAdmin())
+                                {
+                                    <a asp-action="Edit"    asp-route-id="@item.Id" class="btn btn-sm btn-primary">Edit</a>
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post"
+                                          onsubmit="return confirm('Delete @item.FullName?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
                             </div>
                         </td>
                     </tr>

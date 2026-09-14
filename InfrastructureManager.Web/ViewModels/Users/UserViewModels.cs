@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using InfrastructureManager.Application.DTOs.AccessGroups;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace InfrastructureManager.Web.ViewModels.Users;
 
@@ -12,6 +14,10 @@ public class UserListViewModel
     public bool   IsActive    { get; set; }
     public string Role        { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>True voor Admin — ziet alles, ongeacht groepen/uitzonderingen.</summary>
+    public bool IsUnrestricted             { get; set; }
+    public int  AccessibleDepartmentCount  { get; set; }
 }
 
 public class CreateUserViewModel
@@ -37,11 +43,17 @@ public class CreateUserViewModel
     [Display(Name = "Password")]
     public string Password { get; set; } = string.Empty;
 
-    [Display(Name = "Administrator (can create, edit and delete)")]
-    public bool IsAdmin { get; set; }
+    [Required]
+    [Display(Name = "Rol")]
+    public string Role { get; set; } = "Viewer";
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;
+
+    [Display(Name = "Toegangsgroepen")]
+    public List<int> AccessGroupIds { get; set; } = new();
+
+    public IEnumerable<SelectListItem> AvailableGroups { get; set; } = new List<SelectListItem>();
 }
 
 public class EditUserViewModel
@@ -68,9 +80,24 @@ public class EditUserViewModel
     [Display(Name = "New Password (leave empty to keep current)")]
     public string? NewPassword { get; set; }
 
-    [Display(Name = "Administrator (can create, edit and delete)")]
-    public bool IsAdmin { get; set; }
+    [Required]
+    [Display(Name = "Rol")]
+    public string Role { get; set; } = "Viewer";
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; }
+
+    [Display(Name = "Mag geschiedenis bekijken (individueel)")]
+    public bool CanViewHistory { get; set; }
+
+    [Display(Name = "Toegangsgroepen")]
+    public List<int> AccessGroupIds { get; set; } = new();
+
+    public IEnumerable<SelectListItem> AvailableGroups { get; set; } = new List<SelectListItem>();
+
+    /// <summary>Enkel weergave — beheer gebeurt via de aparte Add/Remove-acties.</summary>
+    public List<AccessGrantDto> IndividualGrants { get; set; } = new();
+
+    public IEnumerable<SelectListItem> AvailableDepartments { get; set; } = new List<SelectListItem>();
+    public IEnumerable<SelectListItem> AvailableLocations   { get; set; } = new List<SelectListItem>();
 }

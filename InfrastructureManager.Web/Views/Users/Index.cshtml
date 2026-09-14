@@ -10,7 +10,10 @@
         <div class="page-subtitle">Account Management</div>
         <h1 class="page-heading">Users</h1>
     </div>
-    <div>
+    <div class="d-flex gap-2">
+        <a asp-controller="AccessGroups" asp-action="Index" class="btn btn-light custom-btn">
+            <i class="bi bi-people-fill"></i> Toegangsgroepen
+        </a>
         <a asp-action="Create" class="btn btn-primary custom-btn">
             <i class="bi bi-person-plus"></i> Add User
         </a>
@@ -34,6 +37,7 @@
                     <th>Name</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Toegang</th>
                     <th>Status</th>
                     <th>Added</th>
                     <th></th>
@@ -47,13 +51,29 @@
                         <td class="fw-semibold">@user.FullName</td>
                         <td>@user.Email</td>
                         <td>
-                            @if (user.Role == "Admin")
+                            @switch (user.Role)
                             {
-                                <span class="status-badge status-active">Admin</span>
+                                case "Admin":
+                                    <span class="status-badge status-active">Admin</span>
+                                    break;
+                                case "Editor":
+                                    <span class="status-badge status-maintenance">Editor</span>
+                                    break;
+                                default:
+                                    <span class="status-badge status-offline">Viewer</span>
+                                    break;
+                            }
+                        </td>
+                        <td>
+                            @if (user.IsUnrestricted)
+                            {
+                                <span class="text-secondary small">Alle departementen</span>
                             }
                             else
                             {
-                                <span class="status-badge status-offline">Viewer</span>
+                                <span class="text-secondary small">
+                                    @user.AccessibleDepartmentCount departement@(user.AccessibleDepartmentCount == 1 ? "" : "en")
+                                </span>
                             }
                         </td>
                         <td>

@@ -1,0 +1,92 @@
+@model IEnumerable<InfrastructureManager.Web.ViewModels.AccessGroups.AccessGroupListViewModel>
+
+@{
+    ViewData["Title"] = "Toegangsgroepen";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-subtitle">Toegangscontrole</div>
+        <h1 class="page-heading">Toegangsgroepen</h1>
+    </div>
+    <div>
+        <a asp-action="Create" class="btn btn-primary custom-btn">
+            <i class="bi bi-plus-lg"></i> Nieuwe groep
+        </a>
+    </div>
+</div>
+
+<div class="content-card">
+    @if (!Model.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="empty-title">Nog geen groepen</div>
+            <div class="empty-description">
+                Maak een groep aan om departementen/locaties in één keer toe te
+                kennen aan meerdere gebruikers.
+            </div>
+        </div>
+    }
+    else
+    {
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Naam</th>
+                    <th>Omschrijving</th>
+                    <th>Scopes</th>
+                    <th>Leden</th>
+                    <th>Geschiedenis</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var g in Model)
+                {
+                    <tr>
+                        <td class="fw-semibold">
+                            <a asp-action="Details" asp-route-id="@g.Id" class="table-link">@g.Name</a>
+                        </td>
+                        <td class="text-secondary">@(g.Description ?? "-")</td>
+                        <td>
+                            <span class="status-badge status-active" style="font-size:.78rem">
+                                @g.DepartmentGrantCount departement@(g.DepartmentGrantCount == 1 ? "" : "en")
+                            </span>
+                            @if (g.LocationGrantCount > 0)
+                            {
+                                <span class="status-badge status-maintenance ms-1" style="font-size:.78rem">
+                                    @g.LocationGrantCount locatie@(g.LocationGrantCount == 1 ? "" : "s")
+                                </span>
+                            }
+                        </td>
+                        <td>@g.MemberCount</td>
+                        <td>
+                            @if (g.CanViewHistory)
+                            {
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                            }
+                            else
+                            {
+                                <span class="text-secondary">—</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a asp-action="Details" asp-route-id="@g.Id" class="btn btn-sm btn-light">Beheren</a>
+                                <a asp-action="Edit" asp-route-id="@g.Id" class="btn btn-sm btn-primary">Edit</a>
+                                <form asp-action="Delete" asp-route-id="@g.Id" method="post"
+                                      onsubmit="return confirm('Groep @g.Name verwijderen? Leden verliezen de toegang die enkel via deze groep kwam.');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

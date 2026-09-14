@@ -7,7 +7,9 @@
     var departments  = ViewBag.Departments as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
                        ?? new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
     var departmentId = ViewBag.DepartmentId as int?;
-    var isAdmin      = User.IsInRole(AppRoles.Admin);
+    // Per het bekeken departement bepaald door de controller (CanEditDepartmentAsync),
+    // niet globaal via de rol — zo mag een Editor hier tekenen/opslaan binnen zijn scope.
+    var isAdmin      = (bool)(ViewBag.CanEdit ?? false);
 }
 
 @Html.AntiForgeryToken()

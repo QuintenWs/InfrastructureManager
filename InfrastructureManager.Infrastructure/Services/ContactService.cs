@@ -21,7 +21,9 @@ public class ContactService : IContactService
         _context    = context;
     }
 
-    public async Task<PagedResult<ContactDto>> GetPagedAsync(string? search, int? departmentId, int page, int pageSize)
+    public async Task<PagedResult<ContactDto>> GetPagedAsync(
+        string? search, int? departmentId, int page, int pageSize,
+        IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
         var query = _context.Contacts
             .Include(x => x.Department).ThenInclude(d => d.Location)
@@ -41,6 +43,9 @@ public class ContactService : IContactService
 
         if (departmentId.HasValue)
             query = query.Where(x => x.DepartmentId == departmentId.Value);
+
+        if (allowedDepartmentIds != null)
+            query = query.Where(x => allowedDepartmentIds.Contains(x.DepartmentId));
 
         var totalCount = await query.CountAsync();
 
@@ -102,7 +107,8 @@ public class ContactService : IContactService
         await _repository.SaveChangesAsync();
 
         await _audit.LogAsync("CREATE", "Contact", entity.Id, entity.FullName,
-            newValues: new { entity.FirstName, entity.LastName, entity.Email, entity.Phone, entity.Role, entity.Notes, entity.DepartmentId });
+            newValues: new { entity.FirstName, entity.LastName, entity.Email, entity.Phone, entity.Role, entity.Notes, entity.DepartmentId },
+            departmentId: entity.DepartmentId);
     }
 
     public async Task UpdateAsync(UpdateContactDto dto)
@@ -125,7 +131,8 @@ public class ContactService : IContactService
 
         await _audit.LogAsync("UPDATE", "Contact", entity.Id, entity.FullName,
             oldValues: old,
-            newValues: new { entity.FirstName, entity.LastName, entity.Email, entity.Phone, entity.Role, entity.Notes, entity.DepartmentId });
+            newValues: new { entity.FirstName, entity.LastName, entity.Email, entity.Phone, entity.Role, entity.Notes, entity.DepartmentId },
+            departmentId: entity.DepartmentId);
     }
 
     public async Task DeleteAsync(int id)
@@ -140,7 +147,8 @@ public class ContactService : IContactService
 
         await _audit.LogAsync("DELETE", "Contact", id,
             $"{snapshot.FirstName} {snapshot.LastName}".Trim(),
-            oldValues: snapshot);
+            oldValues: snapshot,
+            departmentId: snapshot.DepartmentId);
     }
 
     private static ContactDto ToDto(Contact x) => new()

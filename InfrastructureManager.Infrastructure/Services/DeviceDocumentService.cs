@@ -14,8 +14,6 @@ public class DeviceDocumentService : IDeviceDocumentService
 
     private const long MaxFileSizeBytes = 25 * 1024 * 1024; // 25 MB
 
-    // Enkel duidelijk gevaarlijke uitvoerbare bestanden blokkeren — alle
-    // documenttypes (pdf, Office, tekst, archieven, afbeeldingen, ...) zijn toegelaten.
     private static readonly string[] BlockedExtensions =
         { ".exe", ".dll", ".bat", ".cmd", ".com", ".msi", ".ps1", ".sh", ".scr", ".vbs", ".jar", ".jse", ".wsf" };
 
@@ -76,7 +74,8 @@ public class DeviceDocumentService : IDeviceDocumentService
             var device = await _context.Devices.FindAsync(deviceId);
             foreach (var doc in added)
                 await _audit.LogAsync("CREATE", "Device", deviceId, device?.Name ?? $"Toestel #{deviceId}",
-                    newValues: new { Document = doc.FileName, doc.Caption });
+                    newValues: new { Document = doc.FileName, doc.Caption },
+                    departmentId: device?.DepartmentId);
         }
 
         return results;
@@ -92,17 +91,26 @@ public class DeviceDocumentService : IDeviceDocumentService
 
         var device = await _context.Devices.FindAsync(doc.DeviceId);
         await _audit.LogAsync("DELETE", "Device", doc.DeviceId, device?.Name ?? $"Toestel #{doc.DeviceId}",
-            oldValues: new { Document = doc.FileName, doc.Caption });
+            oldValues: new { Document = doc.FileName, doc.Caption },
+            departmentId: device?.DepartmentId);
     }
 
-    public async Task<(byte[] Data, string ContentType, string FileName)?> GetAsync(int documentId)
+    public async Task<(byte[] Data, string ContentType, string FileName, int DepartmentId)?> GetAsync(int documentId)
     {
         var doc = await _context.DeviceDocuments
             .AsNoTracking()
-            .Select(d => new { d.Id, d.FileData, d.ContentType, d.FileName })
+            .Select(d => new { d.Id, d.FileData, d.ContentType, d.FileName, DepartmentId = d.Device.DepartmentId })
             .FirstOrDefaultAsync(d => d.Id == documentId);
 
-        return doc == null ? null : (doc.FileData, doc.ContentType, doc.FileName);
+        return doc == null ? null : (doc.FileData, doc.ContentType, doc.FileName, doc.DepartmentId);
+    }
+
+    public async Task<int?> GetDepartmentIdAsync(int documentId)
+    {
+        return await _context.DeviceDocuments
+            .Where(d => d.Id == documentId)
+            .Select(d => (int?)d.Device.DepartmentId)
+            .FirstOrDefaultAsync();
     }
 
     private static void ValidateFile(IFormFile file)

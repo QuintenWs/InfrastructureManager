@@ -1,0 +1,53 @@
+@model InfrastructureManager.Web.ViewModels.AccessGroups.EditAccessGroupViewModel
+
+@{
+    ViewData["Title"] = "Groep bewerken";
+}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb-nav">
+            <a asp-action="Index">Toegangsgroepen</a>
+            <span>/</span>
+            <a asp-action="Details" asp-route-id="@Model.Id">@Model.Name</a>
+            <span>/</span><span>Edit</span>
+        </div>
+        <h1 class="page-heading">Groep bewerken</h1>
+    </div>
+</div>
+
+<div class="form-page">
+    <div class="form-card">
+        <form asp-action="Edit" method="post">
+            <input asp-for="Id" type="hidden" />
+            <partial name="_ValidationSummary" />
+
+            <div class="form-group">
+                <label asp-for="Name"></label>
+                <input asp-for="Name" class="form-control custom-input" />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+
+            <div class="form-group mt-3">
+                <label asp-for="Description"></label>
+                <textarea asp-for="Description" rows="2" class="form-control custom-input"></textarea>
+            </div>
+
+            <div class="form-check mt-3">
+                <input asp-for="CanViewHistory" class="form-check-input" />
+                <label asp-for="CanViewHistory" class="form-check-label"></label>
+            </div>
+
+            <div class="form-actions mt-4">
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-light custom-btn">Cancel</a>
+                <button type="submit" class="btn btn-primary custom-btn">
+                    <i class="bi bi-check-lg"></i> Opslaan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

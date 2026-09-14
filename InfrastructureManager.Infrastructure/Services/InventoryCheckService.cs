@@ -53,11 +53,15 @@ public class InventoryCheckService : IInventoryCheckService
         };
     }
 
-    public async Task<PagedResult<InventoryCheckSummaryDto>> GetRecentPagedAsync(int page, int pageSize)
+    public async Task<PagedResult<InventoryCheckSummaryDto>> GetRecentPagedAsync(int page, int pageSize, IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
         var query = _context.InventoryChecks
             .Include(c => c.Department).ThenInclude(d => d.Location)
-            .Include(c => c.Items);
+            .Include(c => c.Items)
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            query = query.Where(c => allowedDepartmentIds.Contains(c.DepartmentId));
 
         var totalCount = await query.CountAsync();
 
@@ -88,11 +92,17 @@ public class InventoryCheckService : IInventoryCheckService
         return checks.Select(ToSummaryDto);
     }
 
-    public async Task<IEnumerable<InventoryCheckSummaryDto>> GetRecentAsync(int take = 10)
+    public async Task<IEnumerable<InventoryCheckSummaryDto>> GetRecentAsync(int take = 10, IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
-        var checks = await _context.InventoryChecks
+        var query = _context.InventoryChecks
             .Include(c => c.Department).ThenInclude(d => d.Location)
             .Include(c => c.Items)
+            .AsQueryable();
+
+        if (allowedDepartmentIds != null)
+            query = query.Where(c => allowedDepartmentIds.Contains(c.DepartmentId));
+
+        var checks = await query
             .OrderByDescending(c => c.CheckDate)
             .Take(take)
             .ToListAsync();
@@ -143,10 +153,6 @@ public class InventoryCheckService : IInventoryCheckService
     {
         var (userId, displayName) = await GetCurrentUserAsync();
 
-        // Snapshot the device's current name/type at the moment of the
-        // check, rather than relying on a live join later — keeps this
-        // historical record accurate even if the device gets renamed,
-        // re-typed, or deleted afterwards.
         var deviceIds = dto.Items.Select(i => i.DeviceId).ToList();
         var devices = await _context.Devices
             .Where(d => deviceIds.Contains(d.Id))
@@ -191,30 +197,38 @@ public class InventoryCheckService : IInventoryCheckService
                 Total   = check.Items.Count,
                 Present = check.Items.Count(i => i.IsPresent),
                 Missing = check.Items.Count(i => !i.IsPresent)
-            });
+            },
+            departmentId: dto.DepartmentId);
 
-        // One entry per device too, so a device's own history shows every
-        // check it was part of — not just the check session as a whole.
         foreach (var item in check.Items.Where(i => i.DeviceId.HasValue))
         {
             await _audit.LogAsync("CHECK", "Device", item.DeviceId!.Value, item.DeviceName,
-                newValues: new { item.IsPresent, item.Remark, CheckDate = check.CheckDate });
+                newValues: new { item.IsPresent, item.Remark, CheckDate = check.CheckDate },
+                departmentId: dto.DepartmentId);
         }
 
         return check.Id;
     }
 
-    public async Task<(byte[] Data, string ContentType, string FileName)?> GetPhotoAsync(int itemId)
+    public async Task<(byte[] Data, string ContentType, string FileName, int DepartmentId)?> GetPhotoAsync(int itemId)
     {
         var item = await _context.InventoryCheckItems
             .AsNoTracking()
             .Where(i => i.Id == itemId && i.PhotoData != null)
-            .Select(i => new { i.PhotoData, i.PhotoContentType, i.PhotoFileName })
+            .Select(i => new { i.PhotoData, i.PhotoContentType, i.PhotoFileName, DepartmentId = i.InventoryCheck.DepartmentId })
             .FirstOrDefaultAsync();
 
         if (item?.PhotoData == null) return null;
 
-        return (item.PhotoData, item.PhotoContentType ?? "image/jpeg", item.PhotoFileName ?? "photo.jpg");
+        return (item.PhotoData, item.PhotoContentType ?? "image/jpeg", item.PhotoFileName ?? "photo.jpg", item.DepartmentId);
+    }
+
+    public async Task<int?> GetDepartmentIdForItemAsync(int itemId)
+    {
+        return await _context.InventoryCheckItems
+            .Where(i => i.Id == itemId)
+            .Select(i => (int?)i.InventoryCheck.DepartmentId)
+            .FirstOrDefaultAsync();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
