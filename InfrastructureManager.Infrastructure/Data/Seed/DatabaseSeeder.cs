@@ -198,6 +198,13 @@ public static class DatabaseSeeder
         // to installations that were already seeded before this update.
         await EnsureCryptoFieldsAsync(context);
 
+        // Runs on every startup (cheap, idempotent) — corrects any Device/
+        // Network whose denormalized LocationId is out of sync with its
+        // Department's actual location (e.g. installations where a
+        // department was moved to another location before that move started
+        // cascading to its devices/networks).
+        await RepairDeviceNetworkLocationConsistencyAsync(context);
+
         // ── Default admin user ────────────────────────────────────────────────
         if (userManager != null && !await userManager.Users.AnyAsync())
         {
@@ -268,8 +275,6 @@ public static class DatabaseSeeder
             .Include(d => d.Fields)
             .FirstOrDefaultAsync(d => d.DeviceType == DeviceType.Crypto);
 
-        // Fresh database: Def(DeviceType.Crypto, ...) above hasn't run yet in
-        // this call, or the type doesn't exist for another reason — nothing to do.
         if (cryptoDef == null) return;
 
         var existingKeys = cryptoDef.Fields
@@ -303,6 +308,44 @@ public static class DatabaseSeeder
         {
             context.DeviceTypeFields.AddRange(toAdd);
             await context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Devices en Networks bewaren elk een eigen (gedenormaliseerd) LocationId
+    /// naast hun DepartmentId, puur voor snelle locatie-gebaseerde filters.
+    /// Vóór de fix in DepartmentService.UpdateAsync werd dat veld niet
+    /// bijgewerkt wanneer een departement naar een andere locatie verhuisde
+    /// — deze reparatie zet bestaande scheve data in één keer recht.
+    ///
+    /// Bewust per departement in een lus i.p.v. één query met een join op
+    /// Device.Department: EF Core kan een ExecuteUpdate niet vertalen wanneer
+    /// zowel de Where-clausule als de SetProperty-waarde via dezelfde
+    /// navigatie-eigenschap lopen ("Translation of member 'Department' on
+    /// entity type 'Device' failed"). Met een letterlijke, per-iteratie
+    /// vastgelegde waarde (zoals hieronder) heeft ExecuteUpdate geen
+    /// navigatie meer te vertalen, exact zoals in DepartmentService.UpdateAsync.
+    /// Departementen zijn typisch een klein aantal en dit draait maar één
+    /// keer per opstart, dus de N eenvoudige UPDATE-statements wegen niet op
+    /// tegen de complexiteit van één enkele (hier onmogelijke) bulk-query.
+    /// </summary>
+    private static async Task RepairDeviceNetworkLocationConsistencyAsync(AppDbContext context)
+    {
+        var departments = await context.Departments
+            .Select(d => new { d.Id, d.LocationId })
+            .ToListAsync();
+
+        foreach (var dept in departments)
+        {
+            var locationId = dept.LocationId;
+
+            await context.Devices
+                .Where(d => d.DepartmentId == dept.Id && d.LocationId != locationId)
+                .ExecuteUpdateAsync(s => s.SetProperty(d => d.LocationId, locationId));
+
+            await context.Networks
+                .Where(n => n.DepartmentId == dept.Id && n.LocationId != locationId)
+                .ExecuteUpdateAsync(s => s.SetProperty(n => n.LocationId, locationId));
         }
     }
 }

@@ -191,7 +191,10 @@ public class DepartmentService : IDepartmentService
     {
         var entity = await _repository.GetDetailsByIdAsync(dto.Id);
         if (entity == null) return;
+
         var old = new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes };
+        var locationChanged = entity.LocationId != dto.LocationId;
+
         entity.LocationId  = dto.LocationId;
         entity.Name        = dto.Name;
         entity.Description = dto.Description;
@@ -199,6 +202,25 @@ public class DepartmentService : IDepartmentService
         entity.Notes       = dto.Notes;
         _repository.Update(entity);
         await _repository.SaveChangesAsync();
+
+        if (locationChanged)
+        {
+            // Device en Network bewaren elk een eigen (gedenormaliseerd)
+            // LocationId — puur voor snelle locatie-gebaseerde queries/filters.
+            // Zonder deze stap zou enkel het departement zelf verhuizen, en
+            // bleven al zijn toestellen/netwerken aan de oude locatie hangen,
+            // wat later inconsistente resultaten geeft op elke plek die
+            // rechtstreeks op LocationId filtert (bv. de locatie-filter op
+            // het toestellenoverzicht, of de locatiedetailpagina).
+            await _context.Devices
+                .Where(d => d.DepartmentId == entity.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(d => d.LocationId, dto.LocationId));
+
+            await _context.Networks
+                .Where(n => n.DepartmentId == entity.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(n => n.LocationId, dto.LocationId));
+        }
+
         await _audit.LogAsync("UPDATE", "Department", entity.Id, entity.Name,
             oldValues: old,
             newValues: new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes },

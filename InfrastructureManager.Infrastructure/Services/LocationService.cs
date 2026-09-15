@@ -118,10 +118,6 @@ public class LocationService : ILocationService
         var item = await _repository.GetDetailsByIdAsync(id);
         if (item == null) return null;
 
-        // Isolatiegrens is het departement: op een locatie met meerdere
-        // departementen mag iemand met toegang tot slechts één ervan de
-        // andere departementen (en hun netwerken/toestellen) niet zien —
-        // ook niet via deze locatiepagina.
         var departments = allowedDepartmentIds != null
             ? item.Departments.Where(d => allowedDepartmentIds.Contains(d.Id)).ToList()
             : item.Departments.ToList();
@@ -207,6 +203,17 @@ public class LocationService : ILocationService
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null) return;
         var snapshot = new { entity.Name, entity.City, entity.Country, entity.Notes };
+
+        // AccessGroupGrant/UserAccessGrant-rijen die toegang geven tot exact
+        // déze locatie (via LocationId, niet DepartmentId) worden niet
+        // automatisch mee verwijderd door de databank: SQL Server laat geen
+        // tweede "echte" cascade-pad toe hierheen, aangezien Location al via
+        // Department naar deze tabellen cascadeert. Zonder deze opruiming
+        // zou het verwijderen van een locatie die zo is toegekend, gewoon
+        // stukvallen op een foreign-key-fout.
+        await _context.AccessGroupGrants.Where(g => g.LocationId == id).ExecuteDeleteAsync();
+        await _context.UserAccessGrants.Where(g => g.LocationId == id).ExecuteDeleteAsync();
+
         _repository.Delete(entity);
         await _repository.SaveChangesAsync();
         await _audit.LogAsync("DELETE", "Location", id, snapshot.Name, oldValues: snapshot);

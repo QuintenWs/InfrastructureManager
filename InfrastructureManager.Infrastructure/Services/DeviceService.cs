@@ -99,6 +99,20 @@ public class DeviceService : IDeviceService
         if (entity == null) return;
 
         var snapshot = new { entity.Name, entity.DeviceType, entity.Status, entity.DepartmentId, entity.NetworkId, entity.Notes };
+
+        // InventoryCheckItem houdt een nullable DeviceId bij als "leeft dit
+        // toestel nog"-koppeling, los van zijn eigen snapshot-velden
+        // (DeviceName/DeviceType), die sowieso al correct blijven. Die FK
+        // staat op ClientSetNull in plaats van een echte databank-cascade
+        // (SQL Server laat geen tweede cascade-pad toe, want Department
+        // cascadeert al naar Device). ClientSetNull werkt enkel voor rijen
+        // die EF Core al geladen heeft — omdat hierboven enkel het toestel
+        // zelf wordt opgehaald, zou een toestel dat ooit in een controle
+        // zat, zonder deze stap gewoon niet te verwijderen zijn (foreign-key-fout).
+        await _context.InventoryCheckItems
+            .Where(i => i.DeviceId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.DeviceId, (int?)null));
+
         _repository.Delete(entity);
         await _repository.SaveChangesAsync();
 
@@ -142,9 +156,6 @@ public class DeviceService : IDeviceService
         if (filter.DepartmentId.HasValue)
             query = query.Where(x => x.DepartmentId == filter.DepartmentId.Value);
 
-        // Was voorheen ontbrekend: de eigenlijke gepagineerde device-lijst
-        // (deze methode) paste de toegangsbeperking niet toe, waardoor elke
-        // ingelogde gebruiker gewoon alle toestellen zag ongeacht restrictie.
         if (filter.AllowedDepartmentIds != null)
             query = query.Where(x => filter.AllowedDepartmentIds.Contains(x.DepartmentId));
 
@@ -163,7 +174,6 @@ public class DeviceService : IDeviceService
 
     private static DeviceDto ToDto(Device x)
     {
-        // Try to get IP address from field values for convenience display
         var ipField = x.FieldValues
             .FirstOrDefault(v =>
                 v.Field?.FieldType == "ipv4" ||
