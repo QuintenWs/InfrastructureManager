@@ -1,17 +1,17 @@
 @model IEnumerable<InfrastructureManager.Web.ViewModels.AccessGroups.AccessGroupListViewModel>
 
 @{
-    ViewData["Title"] = "Toegangsgroepen";
+    ViewData["Title"] = "Access Groups";
 }
 
 <div class="page-header">
     <div>
-        <div class="page-subtitle">Toegangscontrole</div>
-        <h1 class="page-heading">Toegangsgroepen</h1>
+        <div class="page-subtitle">Access Control</div>
+        <h1 class="page-heading">Access Groups</h1>
     </div>
     <div>
         <a asp-action="Create" class="btn btn-primary custom-btn">
-            <i class="bi bi-plus-lg"></i> Nieuwe groep
+            <i class="bi bi-plus-lg"></i> New Group
         </a>
     </div>
 </div>
@@ -21,10 +21,10 @@
     {
         <div class="empty-state">
             <div class="empty-icon"><i class="bi bi-people-fill"></i></div>
-            <div class="empty-title">Nog geen groepen</div>
+            <div class="empty-title">No groups yet</div>
             <div class="empty-description">
-                Maak een groep aan om departementen/locaties in één keer toe te
-                kennen aan meerdere gebruikers.
+                Create a group to assign departments/locations to multiple
+                users in one go.
             </div>
         </div>
     }
@@ -33,11 +33,11 @@
         <table class="table align-middle">
             <thead>
                 <tr>
-                    <th>Naam</th>
-                    <th>Omschrijving</th>
+                    <th>Name</th>
+                    <th>Description</th>
                     <th>Scopes</th>
-                    <th>Leden</th>
-                    <th>Geschiedenis</th>
+                    <th>Members</th>
+                    <th>History</th>
                     <th></th>
                 </tr>
             </thead>
@@ -51,12 +51,12 @@
                         <td class="text-secondary">@(g.Description ?? "-")</td>
                         <td>
                             <span class="status-badge status-active" style="font-size:.78rem">
-                                @g.DepartmentGrantCount departement@(g.DepartmentGrantCount == 1 ? "" : "en")
+                                @g.DepartmentGrantCount department@(g.DepartmentGrantCount == 1 ? "" : "s")
                             </span>
                             @if (g.LocationGrantCount > 0)
                             {
                                 <span class="status-badge status-maintenance ms-1" style="font-size:.78rem">
-                                    @g.LocationGrantCount locatie@(g.LocationGrantCount == 1 ? "" : "s")
+                                    @g.LocationGrantCount location@(g.LocationGrantCount == 1 ? "" : "s")
                                 </span>
                             }
                         </td>
@@ -73,10 +73,10 @@
                         </td>
                         <td class="text-end">
                             <div class="table-actions">
-                                <a asp-action="Details" asp-route-id="@g.Id" class="btn btn-sm btn-light">Beheren</a>
+                                <a asp-action="Details" asp-route-id="@g.Id" class="btn btn-sm btn-light">Manage</a>
                                 <a asp-action="Edit" asp-route-id="@g.Id" class="btn btn-sm btn-primary">Edit</a>
                                 <form asp-action="Delete" asp-route-id="@g.Id" method="post"
-                                      onsubmit="return confirm('Groep @g.Name verwijderen? Leden verliezen de toegang die enkel via deze groep kwam.');">
+                                      onsubmit="return confirm('Delete group @g.Name? Members will lose the access that came only from this group.');">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-sm btn-danger">
                                         <i class="bi bi-trash"></i>

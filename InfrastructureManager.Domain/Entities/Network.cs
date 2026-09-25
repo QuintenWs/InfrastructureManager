@@ -6,11 +6,6 @@ public class Network : BaseEntity
 
     public Department Department { get; set; } = null!;
 
-    /// <summary>Derived from Department.LocationId — kept for fast location queries.</summary>
-    public int LocationId { get; set; }
-
-    public Location Location { get; set; } = null!;
-
     public string Name { get; set; } = string.Empty;
 
     public string NetworkAddress { get; set; } = string.Empty;

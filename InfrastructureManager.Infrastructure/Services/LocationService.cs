@@ -1,6 +1,5 @@
 using InfrastructureManager.Application.Common;
 using InfrastructureManager.Application.DTOs.Locations;
-using InfrastructureManager.Application.Interfaces.Repositories;
 using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Infrastructure.Data;
@@ -10,23 +9,39 @@ namespace InfrastructureManager.Infrastructure.Services;
 
 public class LocationService : ILocationService
 {
-    private readonly ILocationRepository _repository;
-    private readonly IAuditService       _audit;
-    private readonly AppDbContext        _context;
+    private readonly IAuditService _audit;
+    private readonly AppDbContext  _context;
 
-    public LocationService(
-        ILocationRepository repository,
-        IAuditService       audit,
-        AppDbContext        context)
+    public LocationService(IAuditService audit, AppDbContext context)
     {
-        _repository = repository;
-        _audit      = audit;
-        _context    = context;
+        _audit   = audit;
+        _context = context;
     }
 
     public async Task<IEnumerable<LocationDto>> GetAllAsync(string? search = null)
     {
-        var items = await _repository.SearchAsync(search);
+        var query = _context.Locations
+            .Include(x => x.Departments).ThenInclude(d => d.Networks)
+            .Include(x => x.Departments).ThenInclude(d => d.Devices)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(s) ||
+                x.City.ToLower().Contains(s) ||
+                x.Country.ToLower().Contains(s));
+        }
+
+        var items = await query.OrderBy(x => x.Name).ToListAsync();
+
+        // NB: NetworkCount/DeviceCount telden voorheen altijd 0 in deze
+        // methode — de repository laadde Departments nooit met Networks/
+        // Devices erbij (enkel Include(x => x.Departments) zonder ThenInclude),
+        // terwijl de service wél probeerde te tellen. Onzichtbaar tot nu
+        // omdat deze methode nergens gebruikt wordt op een scherm waar die
+        // aantallen zichtbaar zijn — nu wel correct dankzij de Includes hierboven.
         return items.Select(x => new LocationDto
         {
             Id              = x.Id,
@@ -36,8 +51,8 @@ public class LocationService : ILocationService
             Notes           = x.Notes,
             CreatedAt       = x.CreatedAt,
             DepartmentCount = x.Departments.Count,
-            NetworkCount    = x.Networks.Count,
-            DeviceCount     = x.Devices.Count
+            NetworkCount    = x.Departments.Sum(d => d.Networks.Count),
+            DeviceCount     = x.Departments.Sum(d => d.Devices.Count)
         });
     }
 
@@ -77,11 +92,11 @@ public class LocationService : ILocationService
                 Name            = l.Name,
                 City            = l.City,
                 Country         = l.Country,
-                Notes            = l.Notes,
+                Notes           = l.Notes,
                 CreatedAt       = l.CreatedAt,
                 DepartmentCount = l.Departments.Count,
-                NetworkCount    = l.Networks.Count,
-                DeviceCount     = l.Devices.Count
+                NetworkCount    = l.Departments.SelectMany(d => d.Networks).Count(),
+                DeviceCount     = l.Departments.SelectMany(d => d.Devices).Count()
             })
             .ToListAsync();
 
@@ -96,7 +111,11 @@ public class LocationService : ILocationService
 
     public async Task<LocationDto?> GetByIdAsync(int id)
     {
-        var item = await _repository.GetDetailsByIdAsync(id);
+        var item = await _context.Locations
+            .Include(x => x.Departments).ThenInclude(d => d.Networks)
+            .Include(x => x.Departments).ThenInclude(d => d.Devices)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
         if (item == null) return null;
 
         return new LocationDto
@@ -108,29 +127,27 @@ public class LocationService : ILocationService
             Notes           = item.Notes,
             CreatedAt       = item.CreatedAt,
             DepartmentCount = item.Departments.Count,
-            NetworkCount    = item.Networks.Count,
-            DeviceCount     = item.Devices.Count
+            NetworkCount    = item.Departments.Sum(d => d.Networks.Count),
+            DeviceCount     = item.Departments.Sum(d => d.Devices.Count)
         };
     }
 
     public async Task<LocationDetailsDto?> GetDetailsByIdAsync(int id, IReadOnlyCollection<int>? allowedDepartmentIds = null)
     {
-        var item = await _repository.GetDetailsByIdAsync(id);
+        var item = await _context.Locations
+            .Include(x => x.Departments).ThenInclude(d => d.Contacts)
+            .Include(x => x.Departments).ThenInclude(d => d.Networks)
+            .Include(x => x.Departments).ThenInclude(d => d.Devices).ThenInclude(dev => dev.Network)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
         if (item == null) return null;
 
         var departments = allowedDepartmentIds != null
             ? item.Departments.Where(d => allowedDepartmentIds.Contains(d.Id)).ToList()
             : item.Departments.ToList();
 
-        var visibleDeptIds = departments.Select(d => d.Id).ToHashSet();
-
-        var networks = allowedDepartmentIds != null
-            ? item.Networks.Where(n => visibleDeptIds.Contains(n.DepartmentId)).ToList()
-            : item.Networks.ToList();
-
-        var devices = allowedDepartmentIds != null
-            ? item.Devices.Where(d => visibleDeptIds.Contains(d.DepartmentId)).ToList()
-            : item.Devices.ToList();
+        var networks = departments.SelectMany(d => d.Networks).ToList();
+        var devices  = departments.SelectMany(d => d.Devices).ToList();
 
         return new LocationDetailsDto
         {
@@ -176,23 +193,29 @@ public class LocationService : ILocationService
             Country = dto.Country,
             Notes   = dto.Notes
         };
-        await _repository.AddAsync(entity);
-        await _repository.SaveChangesAsync();
+
+        _context.Locations.Add(entity);
+        await _context.SaveChangesAsync();
+
         await _audit.LogAsync("CREATE", "Location", entity.Id, entity.Name,
             newValues: new { entity.Name, entity.City, entity.Country, entity.Notes });
     }
 
     public async Task UpdateAsync(UpdateLocationDto dto)
     {
-        var entity = await _repository.GetByIdAsync(dto.Id);
+        var entity = await _context.Locations.FindAsync(dto.Id);
         if (entity == null) return;
+
         var old = new { entity.Name, entity.City, entity.Country, entity.Notes };
-        entity.Name    = dto.Name;
-        entity.City    = dto.City;
-        entity.Country = dto.Country;
-        entity.Notes   = dto.Notes;
-        _repository.Update(entity);
-        await _repository.SaveChangesAsync();
+
+        entity.Name      = dto.Name;
+        entity.City      = dto.City;
+        entity.Country   = dto.Country;
+        entity.Notes     = dto.Notes;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
         await _audit.LogAsync("UPDATE", "Location", entity.Id, entity.Name,
             oldValues: old,
             newValues: new { entity.Name, entity.City, entity.Country, entity.Notes });
@@ -200,22 +223,20 @@ public class LocationService : ILocationService
 
     public async Task DeleteAsync(int id)
     {
-        var entity = await _repository.GetByIdAsync(id);
+        var entity = await _context.Locations.FindAsync(id);
         if (entity == null) return;
         var snapshot = new { entity.Name, entity.City, entity.Country, entity.Notes };
 
         // AccessGroupGrant/UserAccessGrant-rijen die toegang geven tot exact
         // déze locatie (via LocationId, niet DepartmentId) worden niet
-        // automatisch mee verwijderd door de databank: SQL Server laat geen
-        // tweede "echte" cascade-pad toe hierheen, aangezien Location al via
-        // Department naar deze tabellen cascadeert. Zonder deze opruiming
-        // zou het verwijderen van een locatie die zo is toegekend, gewoon
-        // stukvallen op een foreign-key-fout.
+        // automatisch mee verwijderd door de databank — zie ClientSetNull-
+        // comments in AppDbContext.
         await _context.AccessGroupGrants.Where(g => g.LocationId == id).ExecuteDeleteAsync();
         await _context.UserAccessGrants.Where(g => g.LocationId == id).ExecuteDeleteAsync();
 
-        _repository.Delete(entity);
-        await _repository.SaveChangesAsync();
+        _context.Locations.Remove(entity);
+        await _context.SaveChangesAsync();
+
         await _audit.LogAsync("DELETE", "Location", id, snapshot.Name, oldValues: snapshot);
     }
 }

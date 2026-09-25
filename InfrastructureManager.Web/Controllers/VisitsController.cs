@@ -9,10 +9,10 @@ using InfrastructureManager.Web.ViewModels.Shared;
 
 namespace InfrastructureManager.Web.Controllers;
 
-// Lezen (Index/Details) blijft toegankelijk voor elke gescoped gebruiker.
-// Schrijven (Create/SetInProgress) is nu Admin+Editor, met een expliciete
-// departement-scope-check — voorheen kon élke ingelogde gebruiker,
-// inclusief een puur lezende Viewer, hier gewoon in schrijven.
+// Reading (Index/Details) remains accessible to every scoped user.
+// Writing (Create/SetInProgress) is now Admin+Editor, with an explicit
+// department-scope check — previously any logged-in user, including a
+// pure read-only Viewer, could simply write here.
 [Authorize]
 public class VisitsController : Controller
 {
@@ -63,8 +63,8 @@ public class VisitsController : Controller
         }
         else
         {
-            // Ontbrak hier voordien: het globale overzicht (geen departement
-            // gekozen) toonde open actiepunten over ALLE departementen heen.
+            // This was missing before: the global overview (no department
+            // selected) showed open action items across ALL departments.
             var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
             var pagedItems = await _visitService.GetAllOpenActionItemsPagedAsync(page, PageSize, allowedDepartmentIds: allowed);
             vm.GlobalOpenItems = pagedItems.Items.ToList();
@@ -142,8 +142,22 @@ public class VisitsController : Controller
 
         await _visitService.CreateVisitAsync(dto);
 
-        TempData["Success"] = "Bezoek geregistreerd.";
+        TempData["Success"] = "Visit registered.";
         return RedirectToAction(nameof(Index), new { departmentId = vm.DepartmentId });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Delete(int id, int? departmentId)
+    {
+        var visit = await _visitService.GetVisitByIdAsync(id);
+        if (visit == null) return NotFound();
+
+        await _visitService.DeleteVisitAsync(id);
+        TempData["Success"] = "Visit deleted.";
+        return departmentId.HasValue
+            ? RedirectToAction(nameof(Index), new { departmentId })
+            : RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -168,7 +182,7 @@ public class VisitsController : Controller
         return RedirectToAction("AccessDenied", "Auth");
 
         await _visitService.SetInProgressAsync(actionItemId);
-        TempData["Success"] = "Actiepunt gemarkeerd als 'In behandeling'.";
+        TempData["Success"] = "Action item marked as 'In Progress'.";
         return departmentId.HasValue
             ? RedirectToAction(nameof(Index), new { departmentId })
             : RedirectToAction(nameof(Index));

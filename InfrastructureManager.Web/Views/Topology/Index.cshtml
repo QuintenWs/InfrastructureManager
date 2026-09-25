@@ -1,19 +1,14 @@
 @using InfrastructureManager.Application.DTOs.Topology
 @using InfrastructureManager.Infrastructure.Identity
-@model TopologyDto
+@model InfrastructureManager.Web.ViewModels.Topology.TopologyIndexViewModel
 
 @{
     ViewData["Title"] = "Network Topology";
-    var departments  = ViewBag.Departments as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
-                       ?? new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-    var departmentId = ViewBag.DepartmentId as int?;
-    // Per het bekeken departement bepaald door de controller (CanEditDepartmentAsync),
-    // niet globaal via de rol — zo mag een Editor hier tekenen/opslaan binnen zijn scope.
-    var isAdmin      = (bool)(ViewBag.CanEdit ?? false);
+    var topology = Model.Topology;
 }
 
 @Html.AntiForgeryToken()
-<input type="hidden" id="topoIsAdmin" value="@isAdmin.ToString().ToLower()" />
+<input type="hidden" id="topoIsAdmin" value="@Model.CanEdit.ToString().ToLower()" />
 <input type="hidden" id="topoSaveUrl" value="@Url.Action("SaveLayout", "Topology")" />
 
 <div class="page-header">
@@ -29,9 +24,9 @@
             <label class="form-label fw-semibold">Select Department</label>
             <select name="departmentId" class="form-select">
                 <option value="">— choose a department —</option>
-                @foreach (var d in departments)
+                @foreach (var d in Model.Departments)
                 {
-                    if (d.Value == departmentId?.ToString())
+                    if (d.Value == Model.DepartmentId?.ToString())
                     {
                         <option value="@d.Value" selected>@d.Text</option>
                     }
@@ -50,15 +45,15 @@
     </form>
 </div>
 
-@if (Model != null)
+@if (topology != null)
 {
     <div class="content-card" style="padding:0;overflow:hidden">
 
         <div class="topo-toolbar">
             <div class="d-flex align-items-center gap-3 flex-wrap">
-                <span class="fw-semibold">@Model.DepartmentName</span>
-                <span class="text-secondary small">@Model.LocationName</span>
-                @if (Model.SavedPositions != null)
+                <span class="fw-semibold">@topology.DepartmentName</span>
+                <span class="text-secondary small">@topology.LocationName</span>
+                @if (topology.SavedPositions != null)
                 {
                     <span class="badge bg-success" style="font-size:.7rem">Custom layout saved</span>
                 }
@@ -78,7 +73,7 @@
                     <button id="btnFit"     class="btn btn-light" title="Fit to screen"><i class="bi bi-fullscreen"></i></button>
                 </div>
 
-                @if (isAdmin)
+                @if (Model.CanEdit)
                 {
                     <button id="btnDraw" class="btn btn-sm btn-outline-primary" title="Draw a connection between nodes">
                         ✏️ Draw connection
@@ -86,12 +81,12 @@
                     <button id="btnSave" class="btn btn-sm btn-primary">
                         <i class="bi bi-floppy"></i> Save layout
                     </button>
-                    @if (Model.SavedPositions != null)
+                    @if (topology.SavedPositions != null)
                     {
                         <form asp-action="ResetLayout" method="post" class="d-inline"
                               onsubmit="return confirm('Reset to automatic layout?');">
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="departmentId" value="@Model.DepartmentId" />
+                            <input type="hidden" name="departmentId" value="@topology.DepartmentId" />
                             <button type="submit" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-arrow-counterclockwise"></i> Reset
                             </button>
@@ -103,7 +98,7 @@
 
         <div id="topoStatus" class="topo-statusbar"></div>
 
-        @if (isAdmin)
+        @if (Model.CanEdit)
         {
             <div class="topo-hint-bar">
                 <i class="bi bi-info-circle me-1"></i>
@@ -120,13 +115,13 @@
     </div>
 
     <script id="topologyData" type="application/json">
-        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model, new System.Text.Json.JsonSerializerOptions
+        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(topology, new System.Text.Json.JsonSerializerOptions
         {
             PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
         }))
     </script>
 }
-else if (departmentId.HasValue)
+else if (Model.DepartmentId.HasValue)
 {
     <div class="content-card">
         <div class="empty-state">
@@ -171,6 +166,10 @@ else
 .topo-leg-active      { background:#16a34a; }
 .topo-leg-offline     { background:#dc2626; }
 .topo-leg-maintenance { background:#d97706; }
+
+#topologyContainer {
+    position: relative;
+}
 </style>
 
 @section Scripts {

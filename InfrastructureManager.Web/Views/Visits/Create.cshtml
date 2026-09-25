@@ -1,16 +1,16 @@
 @model InfrastructureManager.Web.ViewModels.Visits.CreateVisitViewModel
 
 @{
-    ViewData["Title"] = "Nieuw bezoek";
+    ViewData["Title"] = "New Visit";
 }
 
 <div class="page-header">
     <div>
         <div class="breadcrumb-nav">
-            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Bezoeken</a>
-            <span>/</span><span>Nieuw</span>
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Visits</a>
+            <span>/</span><span>New</span>
         </div>
-        <h1 class="page-heading">Nieuw bezoek — @Model.DepartmentName</h1>
+        <h1 class="page-heading">New Visit — @Model.DepartmentName</h1>
         <div class="text-secondary small">@Model.LocationName</div>
     </div>
 </div>
@@ -22,16 +22,16 @@
     <input type="hidden" asp-for="LocationName" />
 
     <div class="content-card mb-4">
-        <div class="details-section-title">Algemene opmerkingen</div>
+        <div class="details-section-title">General notes</div>
         <textarea asp-for="Summary" rows="3" class="form-control custom-input"
-                  placeholder="Algemene indruk van het bezoek, context, bijzonderheden..."></textarea>
+                  placeholder="General impression of the visit, context, particulars..."></textarea>
     </div>
 
     <div class="content-card mb-4">
-        <div class="details-section-title">Open punten van vorige bezoeken</div>
+        <div class="details-section-title">Open items from previous visits</div>
         @if (!Model.OpenItems.Any())
         {
-            <div class="empty-notes">Geen openstaande punten — niets om te herbekijken.</div>
+            <div class="empty-notes">No open items — nothing to review.</div>
         }
         else
         {
@@ -55,15 +55,15 @@
                             </label>
                             <div class="text-secondary small mt-1">
                                 <partial name="_PriorityBadge" model="item.Priority" />
-                                gemeld door @item.CreatedByDisplayName op @item.CreatedAt.ToString("dd/MM/yyyy")
+                                reported by @item.CreatedByDisplayName on @item.CreatedAt.ToString("dd/MM/yyyy")
                             </div>
                         </div>
 
                         <div id="@notesId" class="mt-2" style="display:none">
-                            <label class="form-label small">Opmerking bij oplossing</label>
+                            <label class="form-label small">Resolution notes</label>
                             <textarea asp-for="OpenItems[i].ResolutionNotes" rows="2"
                                       class="form-control custom-input"
-                                      placeholder="Wat is er precies gedaan?"></textarea>
+                                      placeholder="What exactly was done?"></textarea>
                         </div>
                     </div>
                 }
@@ -72,20 +72,20 @@
     </div>
 
     <div class="content-card mb-4">
-        <div class="details-section-title">Nieuwe punten voor een volgend bezoek</div>
+        <div class="details-section-title">New items for a future visit</div>
         <div id="newItemsContainer" class="d-flex flex-column gap-3">
             @for (int i = 0; i < Model.NewItems.Count; i++)
             {
                 <div class="new-item-row row g-3 align-items-start">
                     <div class="col-md-7">
                         <textarea asp-for="NewItems[i].Description" rows="2" class="form-control custom-input"
-                                  placeholder="Wat is er vastgesteld?"></textarea>
+                                  placeholder="What was found?"></textarea>
                     </div>
                     <div class="col-md-3">
                         <select asp-for="NewItems[i].Priority" class="form-select">
-                            <option value="Low">Laag</option>
-                            <option value="Normal" selected>Normaal</option>
-                            <option value="High">Hoog</option>
+                            <option value="Low">Low</option>
+                            <option value="Normal" selected>Normal</option>
+                            <option value="High">High</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -97,14 +97,14 @@
             }
         </div>
         <button type="button" id="addNewItemBtn" class="btn btn-light custom-btn mt-3">
-            <i class="bi bi-plus-lg"></i> Nog een punt toevoegen
+            <i class="bi bi-plus-lg"></i> Add another item
         </button>
     </div>
 
     <div class="form-actions">
-        <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId" class="btn btn-light custom-btn">Annuleren</a>
+        <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId" class="btn btn-light custom-btn">Cancel</a>
         <button type="submit" class="btn btn-primary custom-btn">
-            <i class="bi bi-check-lg"></i> Bezoek opslaan
+            <i class="bi bi-check-lg"></i> Save Visit
         </button>
     </div>
 </form>

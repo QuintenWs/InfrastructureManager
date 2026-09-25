@@ -78,4 +78,12 @@ public interface IUserAccessService
     Task AddDepartmentGrantToUserAsync(string userId, int departmentId);
     Task AddLocationGrantToUserAsync(string userId, int locationId);
     Task RemoveIndividualGrantAsync(int grantId);
+
+    // NIEUW
+    /// <summary>Aantal effectief toegankelijke departementen voor meerdere
+    /// gebruikers tegelijk — vermijdt N losse round-trips op lijstschermen
+    /// zoals Users/Index. Houdt geen rekening met Admin-status; de aanroeper
+    /// bepaalt zelf wie onbeperkt is en negeert het resultaat voor die
+    /// gebruikers.</summary>
+    Task<Dictionary<string, int>> GetAccessibleDepartmentCountsAsync(IReadOnlyCollection<string> userIds);
 }

@@ -21,4 +21,6 @@ public class HistoryIndexViewModel
 
     public List<SelectListItem> Users       { get; set; } = new();
     public List<SelectListItem> EntityTypes { get; set; } = new();
+
+    public InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel Pagination { get; set; } = new();
 }

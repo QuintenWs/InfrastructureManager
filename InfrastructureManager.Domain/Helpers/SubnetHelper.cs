@@ -58,10 +58,35 @@ public static class SubnetHelper
         var mask    = CidrToMask(cidr);
         var network = ipUint.Value & mask;
 
-        return $"{(network >> 24) & 0xFF}." +
-               $"{(network >> 16) & 0xFF}." +
-               $"{(network >> 8)  & 0xFF}." +
-               $"{network & 0xFF}";
+        return UintToIp(network);
+    }
+
+    // toevoegen, bv. na GetNetworkAddress
+    /// <summary>Formatteert een uint terug naar dotted-decimal notatie — enige
+    /// canonieke plek hiervoor (was voorheen los gedupliceerd in ImportService,
+    /// zie stap 2.6).</summary>
+    public static string UintToIp(uint ip) =>
+        $"{(ip >> 24) & 0xFF}.{(ip >> 16) & 0xFF}.{(ip >> 8) & 0xFF}.{ip & 0xFF}";
+
+    /// <summary>Somt de bruikbare host-adressen in een subnet op (dus zonder
+    /// netwerk- en broadcast-adres). Geeft niets terug voor /31 en /32 (geen
+    /// host-bereik) — begrenzing van hoe groot een subnet mag zijn is de
+    /// verantwoordelijkheid van de aanroeper (zie NetworkService.
+    /// SuggestNextFreeIpAsync).</summary>
+    public static IEnumerable<string> GetHostAddresses(string networkAddress, int cidr)
+    {
+        var netUint = ToUint(networkAddress);
+        if (netUint == null) yield break;
+
+        var hostBits = 32 - cidr;
+        if (hostBits <= 1) yield break;
+
+        var totalAddresses = 1L << hostBits;
+        var start = netUint.Value + 1;
+        var end   = netUint.Value + (uint)(totalAddresses - 2);
+
+        for (var ip = start; ip <= end; ip++)
+            yield return UintToIp(ip);
     }
 
     /// <summary>

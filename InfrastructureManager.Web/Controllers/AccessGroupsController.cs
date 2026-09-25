@@ -69,7 +69,7 @@ public class AccessGroupsController : Controller
                 IsLocation = g.LocationId.HasValue,
                 Label      = g.DepartmentId.HasValue
                     ? $"{g.DepartmentName} ({g.DepartmentLocationName})"
-                    : $"{g.LocationName} (volledige locatie)"
+                    : $"{g.LocationName} (entire location)"
             }).ToList(),
             Members = group.Members.Select(m => new AccessGroupMemberRowViewModel
             {
@@ -101,7 +101,7 @@ public class AccessGroupsController : Controller
                 CanViewHistory = vm.CanViewHistory
             });
 
-            TempData["Success"] = $"Groep '{vm.Name}' aangemaakt.";
+            TempData["Success"] = $"Groep '{vm.Name}' created.";
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (InvalidOperationException ex)
@@ -146,7 +146,7 @@ public class AccessGroupsController : Controller
                 CanViewHistory = vm.CanViewHistory
             });
 
-            TempData["Success"] = "Groep bijgewerkt.";
+            TempData["Success"] = "Group updated.";
             return RedirectToAction(nameof(Details), new { id = vm.Id });
         }
         catch (InvalidOperationException ex)
@@ -165,7 +165,7 @@ public class AccessGroupsController : Controller
     public async Task<IActionResult> Delete(int id)
     {
         await _userAccessService.DeleteAccessGroupAsync(id);
-        TempData["Success"] = "Groep verwijderd.";
+        TempData["Success"] = "Groep deleted.";
         return RedirectToAction(nameof(Index));
     }
 

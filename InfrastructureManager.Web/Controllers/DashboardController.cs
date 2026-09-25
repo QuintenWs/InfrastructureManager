@@ -78,10 +78,9 @@ public class DashboardController : Controller
                 .FirstOrDefaultAsync();
         }
 
-        ViewBag.CanViewHistory = await _userAccessService.CanViewHistoryAsync(User);
-
         var vm = new DashboardViewModel
         {
+            CanViewHistory     = await _userAccessService.CanViewHistoryAsync(User),
             TotalDepartments   = data.TotalDepartments,
             TotalLocations     = data.TotalLocations,
             TotalDevices       = data.TotalDevices,

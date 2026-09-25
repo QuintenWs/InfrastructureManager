@@ -1,4 +1,4 @@
-@model IEnumerable<InfrastructureManager.Web.ViewModels.Departments.DepartmentListViewModel>
+@model InfrastructureManager.Web.ViewModels.Departments.DepartmentIndexViewModel
 
 @{
     ViewData["Title"] = "Departments";
@@ -24,7 +24,7 @@
         <div class="col-md-8">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" name="search" value="@ViewBag.Search" placeholder="Search departments..." />
+                <input type="text" name="search" value="@Model.Search" placeholder="Search departments..." />
             </div>
         </div>
         <div class="col-md-4 d-flex gap-2">
@@ -37,7 +37,7 @@
 </div>
 
 <div class="content-card">
-    @if (!Model.Any())
+    @if (!Model.Items.Any())
     {
         <div class="empty-state">
             <div class="empty-icon"><i class="bi bi-building"></i></div>
@@ -57,7 +57,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in Model)
+                @foreach (var item in Model.Items)
                 {
                     <tr>
                         <td>
@@ -103,5 +103,6 @@
                 }
             </tbody>
         </table>
+        <partial name="_Pagination" model="Model.Pagination" />
     }
 </div>

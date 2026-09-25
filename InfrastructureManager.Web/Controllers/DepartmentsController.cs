@@ -58,25 +58,29 @@ public class DepartmentsController : Controller
         var paged      = await _service.GetPagedAsync(search, page, PageSize, allowed);
         var openCounts = await _visitService.GetOpenActionItemCountsAsync();
 
-        ViewBag.Search = search;
-        ViewBag.Pagination = new PaginationViewModel
+        var vm = new DepartmentIndexViewModel
         {
-            CurrentPage = paged.Page,
-            TotalPages  = paged.TotalPages,
-            TotalCount  = paged.TotalCount,
-            RouteValues = new Dictionary<string, string> { ["search"] = search ?? "" }
+            Items = paged.Items.Select(x => new DepartmentListViewModel
+            {
+                Id           = x.Id,
+                Name         = x.Name,
+                Description  = x.Description,
+                LocationName = x.LocationName,
+                Address      = x.Address,
+                CreatedAt    = x.CreatedAt,
+                OpenActionItemCount = openCounts.TryGetValue(x.Id, out var c) ? c : 0
+            }),
+            Search = search,
+            Pagination = new PaginationViewModel
+            {
+                CurrentPage = paged.Page,
+                TotalPages  = paged.TotalPages,
+                TotalCount  = paged.TotalCount,
+                RouteValues = new Dictionary<string, string> { ["search"] = search ?? "" }
+            }
         };
 
-        return View(paged.Items.Select(x => new DepartmentListViewModel
-        {
-            Id           = x.Id,
-            Name         = x.Name,
-            Description  = x.Description,
-            LocationName = x.LocationName,
-            Address      = x.Address,
-            CreatedAt    = x.CreatedAt,
-            OpenActionItemCount = openCounts.TryGetValue(x.Id, out var c) ? c : 0
-        }));
+        return View(vm);
     }
 
     [HttpGet]
@@ -88,13 +92,13 @@ public class DepartmentsController : Controller
         var item = await _service.GetByIdAsync(id);
         if (item == null) return NotFound();
 
-        var contacts            = await _contactService.GetByDepartmentAsync(id);
+        var contacts             = await _contactService.GetByDepartmentAsync(id);
         var devices              = await _deviceService.FilterAsync(new DeviceFilter { DepartmentId = id });
         var networks             = await _networkService.FilterAsync(new NetworkFilter { DepartmentId = id });
         var photos               = await _service.GetPhotosAsync(id);
         var cablingPlans         = await _departmentDocumentService.GetByDepartmentAsync(id, DepartmentDocumentCategory.CablingPlan);
         var openActionItemCount  = await _visitService.GetOpenActionItemCountAsync(id);
-        var lastCheck            = (await _checkService.GetByDepartmentAsync(id)).FirstOrDefault();
+        var lastCheckDate        = await _checkService.GetLastCheckDateAsync(id);
 
         var typeSummary = devices
             .GroupBy(d => d.DeviceType)
@@ -118,7 +122,7 @@ public class DepartmentsController : Controller
             LocationName = item.LocationName,
             CreatedAt    = item.CreatedAt,
             OpenActionItemCount = openActionItemCount,
-            LastCheckDate       = lastCheck?.CheckDate,
+            LastCheckDate       = lastCheckDate,
             CablingPlans        = cablingPlans,
             CanEdit             = await _userAccessService.CanEditDepartmentAsync(User, id),
             CanViewHistory      = await _userAccessService.CanViewHistoryAsync(User),
@@ -256,7 +260,7 @@ public class DepartmentsController : Controller
         var files = Request.Form.Files;
         if (files == null || files.Count == 0)
         {
-            TempData["Error"] = "Selecteer minstens één bestand om te uploaden.";
+            TempData["Error"] = "Select at least one file to upload.";
             return RedirectToAction(nameof(Details), new { id = departmentId });
         }
 
@@ -266,7 +270,7 @@ public class DepartmentsController : Controller
         var failed = results.Where(r => !r.Success).ToList();
         TempData[failed.Any() ? "Error" : "Success"] = failed.Any()
             ? string.Join(", ", failed.Select(f => f.Error))
-            : $"{results.Count(r => r.Success)} bestand(en) geüpload.";
+            : $"{results.Count(r => r.Success)} file(s) uploaded.";
 
         return RedirectToAction(nameof(Details), new { id = departmentId });
     }
@@ -281,7 +285,7 @@ public class DepartmentsController : Controller
             return RedirectToAction("AccessDenied", "Auth");
 
         await _departmentDocumentService.DeleteAsync(documentId);
-        TempData["Success"] = "Bekabelingsplan verwijderd.";
+        TempData["Success"] = "Cabling plan deleted.";
         return RedirectToAction(nameof(Details), new { id = departmentId });
     }
 
@@ -364,7 +368,7 @@ public class DepartmentsController : Controller
             if (current != null && current.LocationId != vm.LocationId)
             {
                 ModelState.AddModelError(nameof(vm.LocationId),
-                    "Enkel een beheerder kan een departement naar een andere locatie verplaatsen.");
+                    "Only an administrator can move a department to a different location.");
                 vm.Locations = await GetLocationsAsync();
                 return View(vm);
             }

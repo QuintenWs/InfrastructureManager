@@ -69,13 +69,13 @@ public class DashboardService : IDashboardService
         var retiredDevices     = await deviceQuery.CountAsync(x => x.Status == DeviceStatus.Retired);
 
         var recentDevices = await deviceQuery
-            .Include(x => x.Location)
+            .Include(x => x.Department).ThenInclude(d => d.Location)
             .OrderByDescending(x => x.CreatedAt)
             .Take(recentDevicesCount)
             .Select(x => new RecentDeviceDto
             {
                 Id = x.Id, Name = x.Name, DeviceType = x.DeviceType.ToString(),
-                Status = x.Status.ToString(), LocationName = x.Location.Name
+                Status = x.Status.ToString(), LocationName = x.Department.Location.Name
             })
             .ToListAsync();
 
@@ -128,7 +128,7 @@ public class DashboardService : IDashboardService
             .Select(v => new
             {
                 v.Value, FieldLabel = v.Field.Label, DeviceId = v.Device.Id, DeviceName = v.Device.Name,
-                DepartmentName = v.Device.Department.Name, LocationName = v.Device.Location.Name
+                DepartmentName = v.Device.Department.Name, LocationName = v.Device.Department.Location.Name
             })
             .ToListAsync();
 

@@ -10,6 +10,22 @@ public interface IDeviceTypeService
         DeviceType deviceType,
         int?       deviceId = null);
 
+    /// <summary>
+    /// Controleert IP-adresvelden in de geposte waarden op conflicten met een
+    /// ander toestel op hetzelfde Network — gooit InfrastructureManager.
+    /// Domain.Exceptions.IpConflictException bij een conflict, slaat zelf
+    /// niets op. Roep dit aan vóór het toestel zelf wordt aangemaakt/
+    /// bijgewerkt (networkId komt dan uit het formulier, niet uit een al
+    /// bestaand Device-record), zodat een conflict nooit een half aangemaakt
+    /// toestel (wél het toestel, niet de velden) achterlaat.
+    /// excludeDeviceId: bij een Edit het bewerkte toestel zelf uitsluiten;
+    /// null bij een Create (het toestel bestaat dan nog niet).
+    /// </summary>
+    Task ValidateFieldValuesAsync(
+        int?                    networkId,
+        int?                    excludeDeviceId,
+        Dictionary<int, string> fieldValues);
+
     Task SaveFieldValuesAsync(
         int deviceId,
         Dictionary<int, string> fieldValues);

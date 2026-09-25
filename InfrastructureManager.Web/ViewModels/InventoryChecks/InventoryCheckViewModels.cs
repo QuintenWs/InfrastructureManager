@@ -16,6 +16,9 @@ public class InventoryCheckIndexViewModel
 
     /// <summary>Populated when no department is selected — recent checks across all departments.</summary>
     public List<InventoryCheckSummaryDto> RecentChecks { get; set; } = new();
+    
+    public InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel Pagination { get; set; } = new();
+
 }
 
 public class CreateInventoryCheckViewModel
@@ -24,7 +27,7 @@ public class CreateInventoryCheckViewModel
     public string DepartmentName { get; set; } = string.Empty;
     public string LocationName   { get; set; } = string.Empty;
 
-    [Display(Name = "Algemene opmerkingen")]
+    [Display(Name = "General notes")]
     public string? Notes { get; set; }
 
     public List<CheckItemRowViewModel> Items { get; set; } = new();
@@ -36,12 +39,12 @@ public class CheckItemRowViewModel
     public string DeviceName { get; set; } = string.Empty;
     public string DeviceType { get; set; } = string.Empty;
 
-    [Display(Name = "Aanwezig")]
+    [Display(Name = "Present")]
     public bool IsPresent { get; set; } = true;
 
-    [Display(Name = "Opmerking")]
+    [Display(Name = "Remark")]
     public string? Remark { get; set; }
 
-    [Display(Name = "Foto")]
+    [Display(Name = "Photo")]
     public IFormFile? Photo { get; set; }
 }

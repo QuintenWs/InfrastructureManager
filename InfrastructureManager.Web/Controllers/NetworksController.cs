@@ -18,21 +18,24 @@ public class NetworksController : Controller
     private readonly IDepartmentService _departmentService;
     private const int PageSize = 20;
     private readonly IUserAccessService _userAccessService;
+    private readonly IExportService          _exportService;
 
     public NetworksController(
         INetworkService    networkService,
         IDepartmentService departmentService,
-        IUserAccessService userAccessService)
+        IUserAccessService userAccessService,
+        IExportService         exportService)
     {
         _networkService    = networkService;
         _departmentService = departmentService;
         _userAccessService = userAccessService;
+        _exportService         = exportService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(
         string? search, bool? isDhcpEnabled,
-        bool? isInternetAccessible, int? departmentId,
+        bool? isInternetAccessible, int? departmentId, int? locationId,
         int? vlanId, string? ispName, int page = 1)
     {
         var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
@@ -42,6 +45,7 @@ public class NetworksController : Controller
             IsDhcpEnabled        = isDhcpEnabled,
             IsInternetAccessible = isInternetAccessible,
             DepartmentId         = departmentId,
+            LocationId           = locationId,
             VlanId               = vlanId,
             IspName              = ispName,
             AllowedDepartmentIds = allowed
@@ -71,29 +75,55 @@ public class NetworksController : Controller
                 IsDhcpEnabled        = isDhcpEnabled,
                 IsInternetAccessible = isInternetAccessible,
                 DepartmentId         = departmentId,
+                LocationId           = locationId,
                 VlanId               = vlanId,
                 IspName              = ispName,
-                Departments          = await GetDepartmentsAsync()
-            }
-        };
-
-        ViewBag.Pagination = new PaginationViewModel
-        {
-            CurrentPage = paged.Page,
-            TotalPages  = paged.TotalPages,
-            TotalCount  = paged.TotalCount,
-            RouteValues = new Dictionary<string, string>
+                Departments          = await GetDepartmentsAsync(),
+                Locations            = await GetLocationsAsync()
+            },
+            Pagination = new PaginationViewModel
             {
-                ["search"]               = search ?? "",
-                ["isDhcpEnabled"]        = isDhcpEnabled?.ToString() ?? "",
-                ["isInternetAccessible"] = isInternetAccessible?.ToString() ?? "",
-                ["departmentId"]         = departmentId?.ToString() ?? "",
-                ["vlanId"]               = vlanId?.ToString() ?? "",
-                ["ispName"]              = ispName ?? ""
+                CurrentPage = paged.Page,
+                TotalPages  = paged.TotalPages,
+                TotalCount  = paged.TotalCount,
+                RouteValues = new Dictionary<string, string>
+                {
+                    ["search"]               = search ?? "",
+                    ["isDhcpEnabled"]        = isDhcpEnabled?.ToString() ?? "",
+                    ["isInternetAccessible"] = isInternetAccessible?.ToString() ?? "",
+                    ["departmentId"]         = departmentId?.ToString() ?? "",
+                    ["locationId"]           = locationId?.ToString() ?? "",
+                    ["vlanId"]               = vlanId?.ToString() ?? "",
+                    ["ispName"]              = ispName ?? ""
+                }
             }
         };
-
         return View(vm);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Export(
+        string? search, bool? isDhcpEnabled,
+        bool? isInternetAccessible, int? departmentId, int? locationId,
+        int? vlanId, string? ispName)
+    {
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+        var filter = new NetworkFilter
+        {
+            Search               = search,
+            IsDhcpEnabled        = isDhcpEnabled,
+            IsInternetAccessible = isInternetAccessible,
+            DepartmentId         = departmentId,
+            LocationId           = locationId,
+            VlanId               = vlanId,
+            IspName              = ispName,
+            AllowedDepartmentIds = allowed
+        };
+
+        var networks = await _networkService.FilterAsync(filter);
+        var bytes    = _exportService.ExportNetworks(networks);
+        var fileName = $"Networks_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     [HttpGet]
@@ -107,6 +137,7 @@ public class NetworksController : Controller
         var vm = new NetworkDetailsViewModel
         {
             Id                   = item.Id,
+            DepartmentId         = item.DepartmentId, 
             DepartmentName       = item.DepartmentName,
             LocationName         = item.LocationName,
             Name                 = item.Name,
@@ -299,6 +330,36 @@ public class NetworksController : Controller
         {
             Value = x.Id.ToString(),
             Text  = $"{x.Name} – {x.LocationName}"
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> SuggestFreeIp(int id)
+    {
+        var network = await _networkService.GetByIdAsync(id);
+        if (network == null) return NotFound();
+        if (!await _userAccessService.CanAccessDepartmentAsync(User, network.DepartmentId))
+            return Forbid();
+
+        var ip = await _networkService.SuggestNextFreeIpAsync(id);
+        return Json(new { ip });
+    }
+
+    private async Task<IEnumerable<SelectListItem>> GetLocationsAsync()
+    {
+        var allowedLocationIds = await _userAccessService.GetAccessibleLocationIdsAsync(User);
+        var departments = await _departmentService.GetAllAsync();
+        var groups = departments
+            .GroupBy(x => x.LocationName)
+            .Select(g => new { LocationId = g.First().LocationId, LocationName = g.Key });
+
+        if (allowedLocationIds != null)
+            groups = groups.Where(g => allowedLocationIds.Contains(g.LocationId));
+
+        return groups.Select(g => new SelectListItem
+        {
+            Value = g.LocationId.ToString(),
+            Text  = g.LocationName
         });
     }
 }

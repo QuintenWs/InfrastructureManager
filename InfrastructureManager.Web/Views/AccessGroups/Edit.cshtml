@@ -1,18 +1,18 @@
 @model InfrastructureManager.Web.ViewModels.AccessGroups.EditAccessGroupViewModel
 
 @{
-    ViewData["Title"] = "Groep bewerken";
+    ViewData["Title"] = "Edit Group";
 }
 
 <div class="page-header">
     <div>
         <div class="breadcrumb-nav">
-            <a asp-action="Index">Toegangsgroepen</a>
+            <a asp-action="Index">Access Groups</a>
             <span>/</span>
             <a asp-action="Details" asp-route-id="@Model.Id">@Model.Name</a>
             <span>/</span><span>Edit</span>
         </div>
-        <h1 class="page-heading">Groep bewerken</h1>
+        <h1 class="page-heading">Edit Group</h1>
     </div>
 </div>
 
@@ -41,7 +41,7 @@
             <div class="form-actions mt-4">
                 <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-light custom-btn">Cancel</a>
                 <button type="submit" class="btn btn-primary custom-btn">
-                    <i class="bi bi-check-lg"></i> Opslaan
+                    <i class="bi bi-check-lg"></i> Save
                 </button>
             </div>
         </form>

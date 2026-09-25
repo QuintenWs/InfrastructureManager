@@ -18,7 +18,7 @@
     <partial name="_ValidationSummary" />
 
     <div class="content-card mb-4">
-        <div class="details-section-title">Accountgegevens</div>
+        <div class="details-section-title">Account Details</div>
         <div class="form-grid">
 
             <div class="form-group">
@@ -49,18 +49,18 @@
     </div>
 
     <div class="content-card mb-4">
-        <div class="details-section-title">Rechten</div>
+        <div class="details-section-title">Permissions</div>
 
         <div class="row g-4">
             <div class="col-md-7">
                 <label asp-for="Role" class="form-label fw-semibold"></label>
                 <select asp-for="Role" class="form-select" id="roleSelect">
-                    <option value="Viewer">Viewer — enkel lezen, binnen zijn scope</option>
-                    <option value="Editor">Editor — mag wijzigen, binnen zijn scope</option>
-                    <option value="Admin">Admin — onbeperkt, kan alles beheren</option>
+                    <option value="Viewer">Viewer — read-only, within their scope</option>
+                    <option value="Editor">Editor — may make changes, within their scope</option>
+                    <option value="Admin">Admin — unrestricted, can manage everything</option>
                 </select>
                 <div class="text-secondary small mt-2">
-                    Viewer en Editor zien enkel de departementen uit hun groepen/uitzonderingen.
+                    Viewer and Editor only see the departments from their groups/exceptions.
                 </div>
             </div>
 
@@ -75,17 +75,17 @@
     </div>
 
     <div class="content-card mb-4" id="groupsSection">
-        <div class="details-section-title">Toegangsgroepen</div>
+        <div class="details-section-title">Access Groups</div>
         <div class="text-secondary small mb-3">
-            Kies in welke groepen deze gebruiker start. Kan later nog aangepast worden.
+            Choose which groups this user starts in. Can be changed later.
         </div>
 
         @if (!Model.AvailableGroups.Any())
         {
             <div class="empty-notes">
-                Nog geen groepen aangemaakt. Ga naar
-                <a asp-controller="AccessGroups" asp-action="Index">Toegangsgroepen</a>
-                om er een aan te maken.
+                No groups created yet. Go to
+                <a asp-controller="AccessGroups" asp-action="Index">Access Groups</a>
+                to create one.
             </div>
         }
         else

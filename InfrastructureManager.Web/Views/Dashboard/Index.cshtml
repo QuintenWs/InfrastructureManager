@@ -96,7 +96,7 @@
                                    name="ShowExpiringItems" value="true" id="ws5"
                                    @(s.ShowExpiringItems ? "checked" : "") />
                             <input type="hidden" name="ShowExpiringItems" value="false" />
-                            <label class="form-check-label" for="ws5">Vervalt binnenkort</label>
+                            <label class="form-check-label" for="ws5">Expiring Soon</label>
                         </div>
                     </div>
 
@@ -106,7 +106,7 @@
                                    name="ShowOverdueVisits" value="true" id="ws6"
                                    @(s.ShowOverdueVisits ? "checked" : "") />
                             <input type="hidden" name="ShowOverdueVisits" value="false" />
-                            <label class="form-check-label" for="ws6">Departementen zonder bezoek</label>
+                            <label class="form-check-label" for="ws6">Departments Without a Visit</label>
                         </div>
                     </div>
 
@@ -114,7 +114,7 @@
 
                 <div class="row g-3 mb-3">
                     <div class="col-md-6 col-lg-3">
-                        <label class="form-label small text-secondary">Aantal recente toestellen</label>
+                        <label class="form-label small text-secondary">Recent devices count</label>
                         <select name="RecentDevicesCount" class="form-select form-select-sm">
                             @foreach (var n in new[] { 5, 10, 15, 25 })
                             {
@@ -123,7 +123,7 @@
                         </select>
                     </div>
                     <div class="col-md-6 col-lg-3">
-                        <label class="form-label small text-secondary">Aantal activiteiten</label>
+                        <label class="form-label small text-secondary">Activity count</label>
                         <select name="RecentActivityCount" class="form-select form-select-sm">
                             @foreach (var n in new[] { 5, 10, 20, 50 })
                             {
@@ -181,7 +181,7 @@
     {
         <div class="content-card">
             <div class="card-header-custom d-flex justify-content-between align-items-center">
-                <h3>Vervalt binnenkort</h3>
+                <h3>Expiring Soon</h3>
                 @if (Model.ExpiringItems.Any())
                 {
                     <span class="table-meta">@Model.ExpiringItems.Count() item@(Model.ExpiringItems.Count() == 1 ? "" : "s")</span>
@@ -191,8 +191,8 @@
             {
                 <div class="empty-state py-3">
                     <div class="empty-icon"><i class="bi bi-shield-check"></i></div>
-                    <div class="empty-title">Niets te melden</div>
-                    <div class="empty-description">Geen vervaldatums binnen 100 dagen.</div>
+                    <div class="empty-title">Nothing to report</div>
+                    <div class="empty-description">No expiry dates within 100 days.</div>
                 </div>
             }
             else
@@ -212,11 +212,11 @@
                             <span class="status-badge @(expired ? "status-offline" : "status-maintenance")">
                                 @if (expired)
                                 {
-                                    @($"Verlopen op {item.ExpiryDate:dd/MM/yyyy}")
+                                    @($"Expired on {item.ExpiryDate:dd/MM/yyyy}")
                                 }
                                 else
                                 {
-                                    @($"Nog {item.DaysRemaining} dag{(item.DaysRemaining == 1 ? "" : "en")} — {item.ExpiryDate:dd/MM/yyyy}")
+                                    @($"{item.DaysRemaining} day{(item.DaysRemaining == 1 ? "" : "s")} left — {item.ExpiryDate:dd/MM/yyyy}")
                                 }
                             </span>
                         </a>
@@ -230,7 +230,7 @@
     {
         <div class="content-card">
             <div class="card-header-custom d-flex justify-content-between align-items-center">
-                <h3>Departementen zonder recent bezoek</h3>
+                <h3>Departments Without a Recent Visit</h3>
                 @if (Model.OverdueVisits.Any())
                 {
                     <span class="table-meta">@Model.OverdueVisits.Count() item@(Model.OverdueVisits.Count() == 1 ? "" : "s")</span>
@@ -240,8 +240,8 @@
             {
                 <div class="empty-state py-3">
                     <div class="empty-icon"><i class="bi bi-calendar-check"></i></div>
-                    <div class="empty-title">Alles recent bezocht</div>
-                    <div class="empty-description">Geen departement zonder bezoek in de laatste 2 jaar.</div>
+                    <div class="empty-title">All recently visited</div>
+                    <div class="empty-description">No department without a visit in the last 2 years.</div>
                 </div>
             }
             else
@@ -256,8 +256,8 @@
                             </div>
                             <span class="status-badge status-offline">
                                 @(item.LastVisitDate.HasValue
-                                    ? $"Laatste bezoek {item.LastVisitDate.Value:dd/MM/yyyy} — {item.DaysSinceLastVisit} dagen geleden"
-                                    : "Nog nooit bezocht")
+                                    ? $"Last visit {item.LastVisitDate.Value:dd/MM/yyyy} — {item.DaysSinceLastVisit} days ago"
+                                    : "Never visited")
                             </span>
                         </a>
                     }
@@ -327,10 +327,10 @@
         <div class="content-card">
             <div class="card-header-custom d-flex justify-content-between align-items-center">
                 <h3>Recent Activity</h3>
-                @if ((bool)(ViewBag.CanViewHistory ?? false))
+                @if (Model.CanViewHistory)
                 {
                     <a asp-controller="History" asp-action="Index" class="small">
-                        Volledige geschiedenis →
+                        Full history →
                     </a>
                 }
             </div>

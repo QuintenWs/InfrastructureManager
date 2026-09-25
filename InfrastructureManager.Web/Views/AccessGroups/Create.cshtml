@@ -1,15 +1,15 @@
 @model InfrastructureManager.Web.ViewModels.AccessGroups.CreateAccessGroupViewModel
 
 @{
-    ViewData["Title"] = "Nieuwe toegangsgroep";
+    ViewData["Title"] = "New Access Group";
 }
 
 <div class="page-header">
     <div>
         <div class="breadcrumb-nav">
-            <a asp-action="Index">Toegangsgroepen</a><span>/</span><span>Nieuw</span>
+            <a asp-action="Index">Access Groups</a><span>/</span><span>New</span>
         </div>
-        <h1 class="page-heading">Nieuwe toegangsgroep</h1>
+        <h1 class="page-heading">New Access Group</h1>
     </div>
 </div>
 
@@ -20,7 +20,7 @@
 
             <div class="form-group">
                 <label asp-for="Name"></label>
-                <input asp-for="Name" class="form-control custom-input" placeholder="bv. IT Operations Antwerpen" />
+                <input asp-for="Name" class="form-control custom-input" placeholder="e.g. IT Operations Antwerp" />
                 <span asp-validation-for="Name" class="text-danger small"></span>
             </div>
 
@@ -33,15 +33,15 @@
                 <input asp-for="CanViewHistory" class="form-check-input" />
                 <label asp-for="CanViewHistory" class="form-check-label"></label>
                 <div class="text-secondary small mt-1">
-                    Leden van deze groep mogen de audit-geschiedenis bekijken,
-                    beperkt tot hun eigen departementen.
+                    Members of this group can view the audit history,
+                    limited to their own departments.
                 </div>
             </div>
 
             <div class="form-actions mt-4">
                 <a asp-action="Index" class="btn btn-light custom-btn">Cancel</a>
                 <button type="submit" class="btn btn-primary custom-btn">
-                    <i class="bi bi-check-lg"></i> Groep aanmaken
+                    <i class="bi bi-check-lg"></i> Create Group
                 </button>
             </div>
         </form>

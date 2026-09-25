@@ -2,6 +2,7 @@ using InfrastructureManager.Application.DTOs.Devices;
 using InfrastructureManager.Application.Filters;
 using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Domain.Enums;
+using InfrastructureManager.Domain.Exceptions;
 using InfrastructureManager.Infrastructure.Identity;
 using InfrastructureManager.Web.ViewModels.Devices;
 using InfrastructureManager.Web.ViewModels.Shared;
@@ -23,6 +24,7 @@ public class DevicesController : Controller
     private readonly IMaintenanceLogService  _maintenanceLogService;
     private readonly IDeviceDocumentService  _deviceDocumentService;
     private readonly IUserAccessService      _userAccessService;
+    private readonly IExportService          _exportService;
 
     public DevicesController(
         IDeviceService         deviceService,
@@ -31,7 +33,8 @@ public class DevicesController : Controller
         IDeviceTypeService     deviceTypeService,
         IMaintenanceLogService maintenanceLogService,
         IDeviceDocumentService deviceDocumentService,
-        IUserAccessService     userAccessService)
+        IUserAccessService     userAccessService,
+        IExportService         exportService)
     {
         _deviceService         = deviceService;
         _departmentService     = departmentService;
@@ -40,18 +43,19 @@ public class DevicesController : Controller
         _maintenanceLogService = maintenanceLogService;
         _deviceDocumentService = deviceDocumentService;
         _userAccessService     = userAccessService;
+        _exportService         = exportService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(
-        string? search, DeviceType? deviceType,
+        string? search, int? deviceType,
         DeviceStatus? status, int? locationId, int? departmentId, int page = 1)
     {
         var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var filter = new DeviceFilter
         {
             Search       = search,
-            DeviceType   = deviceType,
+            DeviceType   = deviceType.HasValue ? (DeviceType)deviceType.Value : null,
             Status       = status,
             LocationId   = locationId,
             DepartmentId = departmentId,
@@ -88,7 +92,8 @@ public class DevicesController : Controller
                 Status       = status,
                 LocationId   = locationId,
                 DepartmentId = departmentId,
-                Locations    = await GetLocationsAsync()
+                Locations    = await GetLocationsAsync(),
+                DeviceTypes  = await GetDeviceTypesAsync()
             },
             Pagination = new PaginationViewModel
             {
@@ -100,6 +105,28 @@ public class DevicesController : Controller
         };
 
         return View(vm);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Export(
+        string? search, int? deviceType,
+        DeviceStatus? status, int? locationId, int? departmentId)
+    {
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+        var filter = new DeviceFilter
+        {
+            Search       = search,
+            DeviceType   = deviceType.HasValue ? (DeviceType)deviceType.Value : null,
+            Status       = status,
+            LocationId   = locationId,
+            DepartmentId = departmentId,
+            AllowedDepartmentIds = allowed
+        };
+
+        var devices = await _deviceService.FilterAsync(filter);
+        var bytes   = _exportService.ExportDevices(devices);
+        var fileName = $"Devices_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     [HttpGet]
@@ -184,7 +211,7 @@ public class DevicesController : Controller
 
     [HttpGet]
     [Authorize(Roles = AppRoles.AdminOrEditor)]
-    public async Task<IActionResult> Create(int? departmentId)
+    public async Task<IActionResult> Create(int? departmentId, int? networkId)
     {
         if (departmentId.HasValue && !await _userAccessService.CanEditDepartmentAsync(User, departmentId.Value))
             return RedirectToAction("AccessDenied", "Auth");
@@ -192,9 +219,11 @@ public class DevicesController : Controller
         var vm = new CreateDeviceViewModel
         {
             DepartmentId = departmentId ?? 0,
+            NetworkId    = networkId,   // NIEUW — voorgeselecteerd bij aankomst via "Add Device" op Networks/Details
             Departments  = await GetDepartmentsAsync(),
+            DeviceTypes  = await GetDeviceTypesAsync(),
             Status       = DeviceStatus.Active,
-            DeviceType   = DeviceType.Switch
+            DeviceType   = (int)DeviceType.Switch
         };
 
         if (departmentId.HasValue)
@@ -213,8 +242,30 @@ public class DevicesController : Controller
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
+            vm.DeviceTypes = await GetDeviceTypesAsync();
             vm.Networks    = await GetNetworksForDepartmentAsync(vm.DepartmentId);
             return View(vm);
+        }
+
+        // Vóór het toestel zelf aan te maken: conflicteert een IP-veld met
+        // een ander toestel op hetzelfde netwerk? Zo ja, hier al stoppen —
+        // anders zou het toestel al aangemaakt zijn tegen de tijd dat
+        // SaveFieldValuesAsync verderop het conflict zou detecteren, en zou
+        // een herprobeer-poging een tweede, dubbel toestel aanmaken.
+        if (vm.FieldValues?.Any() == true)
+        {
+            try
+            {
+                await _deviceTypeService.ValidateFieldValuesAsync(vm.NetworkId, excludeDeviceId: null, vm.FieldValues);
+            }
+            catch (Exception ex) when (ex is IpConflictException or DeviceFieldValidationException)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                vm.Departments = await GetDepartmentsAsync();
+                vm.DeviceTypes = await GetDeviceTypesAsync();
+                vm.Networks    = await GetNetworksForDepartmentAsync(vm.DepartmentId);
+                return View(vm);
+            }
         }
 
         var deviceId = await _deviceService.CreateAsync(new CreateDeviceDto
@@ -222,7 +273,7 @@ public class DevicesController : Controller
             DepartmentId = vm.DepartmentId,
             NetworkId    = vm.NetworkId,
             Name         = vm.Name,
-            DeviceType   = vm.DeviceType,
+            DeviceType   = (DeviceType)vm.DeviceType,
             Status       = vm.Status,
             Notes        = vm.Notes
         });
@@ -251,10 +302,11 @@ public class DevicesController : Controller
             Name         = item.Name,
             DepartmentId = item.DepartmentId,
             NetworkId    = item.NetworkId,
-            DeviceType   = item.DeviceType,
+            DeviceType   = (int)item.DeviceType,
             Status       = item.Status,
             Notes        = item.Notes,
             Departments  = await GetDepartmentsAsync(),
+            DeviceTypes  = await GetDeviceTypesAsync(),
             Networks     = await GetNetworksForDepartmentAsync(item.DepartmentId),
             TypeFields   = typeFields?.Fields.ToList() ?? new List<DeviceTypeFieldDto>()
         };
@@ -269,9 +321,6 @@ public class DevicesController : Controller
         var original = await _deviceService.GetByIdAsync(vm.Id);
         if (original == null) return NotFound();
 
-        // Zowel het huidige als het (eventueel nieuwe) departement moeten
-        // binnen de scope van de gebruiker vallen — anders zou een Editor
-        // een toestel naar een departement buiten zijn bereik kunnen verplaatsen.
         if (!await _userAccessService.CanEditDepartmentAsync(User, original.DepartmentId) ||
             !await _userAccessService.CanEditDepartmentAsync(User, vm.DepartmentId))
             return RedirectToAction("AccessDenied", "Auth");
@@ -279,10 +328,29 @@ public class DevicesController : Controller
         if (!ModelState.IsValid)
         {
             vm.Departments = await GetDepartmentsAsync();
+            vm.DeviceTypes = await GetDeviceTypesAsync();
             vm.Networks    = await GetNetworksForDepartmentAsync(vm.DepartmentId);
-            vm.TypeFields  = (await _deviceTypeService.GetFieldsAsync(vm.DeviceType, vm.Id))
+            vm.TypeFields  = (await _deviceTypeService.GetFieldsAsync((DeviceType)vm.DeviceType, vm.Id))
                              ?.Fields.ToList() ?? new List<DeviceTypeFieldDto>();
             return View(vm);
+        }
+
+        if (vm.FieldValues?.Any() == true)
+        {
+            try
+            {
+                await _deviceTypeService.ValidateFieldValuesAsync(vm.NetworkId, excludeDeviceId: vm.Id, vm.FieldValues);
+            }
+            catch (Exception ex) when (ex is IpConflictException or DeviceFieldValidationException)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                vm.Departments = await GetDepartmentsAsync();
+                vm.DeviceTypes = await GetDeviceTypesAsync();
+                vm.Networks    = await GetNetworksForDepartmentAsync(vm.DepartmentId);
+                vm.TypeFields  = (await _deviceTypeService.GetFieldsAsync((DeviceType)vm.DeviceType, vm.Id))
+                                 ?.Fields.ToList() ?? new List<DeviceTypeFieldDto>();
+                return View(vm);
+            }
         }
 
         await _deviceService.UpdateAsync(new UpdateDeviceDto
@@ -291,7 +359,7 @@ public class DevicesController : Controller
             DepartmentId = vm.DepartmentId,
             NetworkId    = vm.NetworkId,
             Name         = vm.Name,
-            DeviceType   = vm.DeviceType,
+            DeviceType   = (DeviceType)vm.DeviceType,
             Status       = vm.Status,
             Notes        = vm.Notes
         });
@@ -361,7 +429,7 @@ public class DevicesController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetTypeFields(DeviceType deviceType, int? deviceId)
+    public async Task<IActionResult> GetTypeFields(int deviceType, int? deviceId)
     {
         if (deviceId.HasValue)
         {
@@ -371,7 +439,7 @@ public class DevicesController : Controller
                 return Forbid();
         }
 
-        var result = await _deviceTypeService.GetFieldsAsync(deviceType, deviceId);
+        var result = await _deviceTypeService.GetFieldsAsync((DeviceType)deviceType, deviceId);
         return Json(result?.Fields ?? Enumerable.Empty<DeviceTypeFieldDto>());
     }
 
@@ -417,5 +485,17 @@ public class DevicesController : Controller
             Value = g.LocationId.ToString(),
             Text  = g.LocationName
         });
+    }
+
+    private async Task<IEnumerable<SelectListItem>> GetDeviceTypesAsync()
+    {
+        var defs = await _deviceTypeService.GetAllDefinitionsAsync();
+        return defs
+            .OrderBy(d => d.Name)
+            .Select(d => new SelectListItem
+            {
+                Value = ((int)d.DeviceType).ToString(),
+                Text  = d.Name
+            });
     }
 }

@@ -5,17 +5,11 @@ namespace InfrastructureManager.Application.Interfaces.Services;
 
 public interface IVisitService
 {
-    /// <summary>Visit history for one department, most recent first.</summary>
-    Task<IEnumerable<SiteVisitDto>> GetVisitsByDepartmentAsync(int departmentId);
-
     /// <summary>A single visit including the items resolved/created during it.</summary>
     Task<SiteVisitDto?> GetVisitByIdAsync(int id);
 
     /// <summary>Open + in-progress items for one department, highest priority / oldest first.</summary>
     Task<IEnumerable<ActionItemDto>> GetOpenActionItemsByDepartmentAsync(int departmentId);
-
-    /// <summary>Open + in-progress items across all departments (optionally scoped to a location and/or an access restriction).</summary>
-    Task<IEnumerable<ActionItemDto>> GetAllOpenActionItemsAsync(int? locationId = null, IReadOnlyCollection<int>? allowedDepartmentIds = null);
 
     Task<int> GetOpenActionItemCountAsync(int? departmentId = null);
 
@@ -34,4 +28,11 @@ public interface IVisitService
     Task<PagedResult<ActionItemDto>> GetAllOpenActionItemsPagedAsync(int page, int pageSize, int? locationId = null, IReadOnlyCollection<int>? allowedDepartmentIds = null);
 
     Task<PagedResult<SiteVisitDto>>  GetVisitsByDepartmentPagedAsync(int departmentId, int page, int pageSize);
+
+    /// <summary>Verwijdert een geregistreerd bezoek. Admin-only vanuit de
+    /// controller. Ontkoppelt eerst de ActionItems die naar dit bezoek
+    /// verwijzen (CreatedDuringVisitId/ResolvedDuringVisitId staan op
+    /// ClientSetNull, zie AppDbContext) — zonder die stap zou dit dezelfde
+    /// DbUpdateException geven als de DeviceTypeDefinition-bug uit stap 1.3.</summary>
+    Task DeleteVisitAsync(int id);
 }

@@ -9,14 +9,23 @@ public class DeviceTypeListViewModel
     public string? Description { get; set; }
     public int    FieldCount  { get; set; }
     public int    DeviceCount { get; set; }
+    public int    DeviceTypeValue { get; set; }  
 }
 
+public class DeviceTypeIndexViewModel
+{
+    public IEnumerable<DeviceTypeListViewModel> Items { get; set; } = new List<DeviceTypeListViewModel>();
+    public InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel Pagination { get; set; } = new();
+}
+
+// na
 public class DeviceTypeDetailsViewModel
 {
     public int    Id          { get; set; }
     public string Name        { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int    DeviceCount { get; set; }
+    public int    DeviceTypeValue { get; set; }   
     public IEnumerable<DeviceTypeFieldViewModel> Fields { get; set; }
         = new List<DeviceTypeFieldViewModel>();
 
@@ -78,7 +87,7 @@ public class AddFieldViewModel
     [Display(Name = "Required")]
     public bool IsRequired { get; set; }
 
-    [Display(Name = "Waarschuw bij vervaldatum (enkel voor datumvelden)")]
+    [Display(Name = "Warn on expiry date (date fields only)")]
     public bool AlertOnExpiry { get; set; }
 }
 
@@ -101,6 +110,6 @@ public class EditFieldViewModel
     [Display(Name = "Required")]
     public bool IsRequired { get; set; }
 
-    [Display(Name = "Waarschuw bij vervaldatum (enkel voor datumvelden)")]
+    [Display(Name = "Warn on expiry date (date fields only)")]
     public bool AlertOnExpiry { get; set; }
 }

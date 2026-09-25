@@ -60,13 +60,13 @@
                 </div>
 
                 <div class="info-item">
-                    <div class="info-label">ISP</div>
-                    <div class="info-value">@(Model.IspName ?? "-")</div>
-                </div>
+                <div class="info-label">ISP</div>
+                <div class="info-value">@(Model.IspName ?? "-")</div>
+            </div>
 
             </div>
 
-        </div>
+            </div>
 
         <div class="content-card mt-4">
 
@@ -178,6 +178,12 @@
 
                 @if (Model.CanEdit)
                 {
+                    <a asp-controller="Devices" asp-action="Create"
+                        asp-route-departmentId="@Model.DepartmentId"
+                        asp-route-networkId="@Model.Id"
+                        class="btn btn-primary custom-btn">
+                        <i class="bi bi-plus-lg"></i> Add Device
+                    </a>
                     <a asp-action="Edit"
                        asp-route-id="@Model.Id"
                        class="btn btn-primary custom-btn">

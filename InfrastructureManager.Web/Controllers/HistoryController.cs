@@ -56,7 +56,7 @@ public class HistoryController : Controller
             EntityTypes = types.Select(t => new SelectListItem { Value = t, Text = TranslateType(t) }).ToList()
         };
 
-        ViewBag.Pagination = new PaginationViewModel
+        vm.Pagination = new PaginationViewModel
         {
             CurrentPage = result.Page,
             TotalPages  = result.TotalPages,
@@ -77,15 +77,15 @@ public class HistoryController : Controller
 
     public static string TranslateType(string type) => type switch
     {
-        "Device"               => "Toestel",
-        "Department"           => "Departement",
-        "Location"             => "Locatie",
-        "Network"              => "Netwerk",
+        "Device"               => "Device",
+        "Department"           => "Department",
+        "Location"             => "Location",
+        "Network"              => "Network",
         "Contact"              => "Contact",
-        "SiteVisit"            => "Bezoek",
-        "ActionItem"           => "Actiepunt",
-        "InventoryCheck"       => "Controle",
-        "DeviceTypeDefinition" => "Apparaattype",
+        "SiteVisit"            => "Visit",
+        "ActionItem"           => "Action Item",
+        "InventoryCheck"       => "Check",
+        "DeviceTypeDefinition" => "Device Type",
         "Import"               => "Import",
         _                      => type
     };

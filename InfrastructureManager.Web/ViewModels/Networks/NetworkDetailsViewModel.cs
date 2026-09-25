@@ -5,6 +5,7 @@ namespace InfrastructureManager.Web.ViewModels.Networks;
 public class NetworkDetailsViewModel
 {
     public int    Id                   { get; set; }
+    public int    DepartmentId         { get; set; } 
     public string DepartmentName       { get; set; } = string.Empty;
     public string LocationName         { get; set; } = string.Empty;
     public string Name                 { get; set; } = string.Empty;

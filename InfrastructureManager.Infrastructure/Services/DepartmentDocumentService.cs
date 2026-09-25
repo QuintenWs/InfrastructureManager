@@ -116,14 +116,14 @@ public class DepartmentDocumentService : IDepartmentDocumentService
 
     private static void ValidateFile(IFormFile file, DepartmentDocumentCategory category)
     {
-        if (file.Length == 0) throw new ArgumentException($"'{file.FileName}' is leeg.");
-        if (file.Length > MaxFileSizeBytes) throw new ArgumentException($"'{file.FileName}' overschrijdt de maximale grootte van 25 MB.");
+        if (file.Length == 0) throw new ArgumentException($"'{file.FileName}' is empty.");
+        if (file.Length > MaxFileSizeBytes) throw new ArgumentException($"'{file.FileName}' exceeds the maximum size of 25 MB.");
 
         if (category == DepartmentDocumentCategory.CablingPlan)
         {
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (!AllowedCablingExtensions.Contains(ext))
-                throw new ArgumentException($"'{file.FileName}': voor een bekabelingsplan zijn enkel Visio (.vsdx/.vsd) of PDF toegelaten.");
+                throw new ArgumentException($"'{file.FileName}': only Visio (.vsdx/.vsd) or PDF are allowed for a cabling plan.");
         }
     }
 }

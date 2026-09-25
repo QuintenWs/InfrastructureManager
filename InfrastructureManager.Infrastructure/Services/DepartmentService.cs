@@ -1,6 +1,5 @@
 using InfrastructureManager.Application.Common;
 using InfrastructureManager.Application.DTOs.Departments;
-using InfrastructureManager.Application.Interfaces.Repositories;
 using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Infrastructure.Data;
@@ -10,23 +9,29 @@ namespace InfrastructureManager.Infrastructure.Services;
 
 public class DepartmentService : IDepartmentService
 {
-    private readonly IDepartmentRepository _repository;
-    private readonly IAuditService         _audit;
-    private readonly AppDbContext          _context;
+    private readonly IAuditService _audit;
+    private readonly AppDbContext  _context;
 
-    public DepartmentService(
-        IDepartmentRepository repository,
-        IAuditService         audit,
-        AppDbContext          context)
+    public DepartmentService(IAuditService audit, AppDbContext context)
     {
-        _repository = repository;
-        _audit      = audit;
-        _context    = context;
+        _audit   = audit;
+        _context = context;
     }
 
     public async Task<IEnumerable<DepartmentDto>> GetAllAsync(string? search = null)
     {
-        var items = await _repository.SearchAsync(search);
+        var query = _context.Departments.Include(x => x.Location).AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(s) ||
+                x.Location.Name.ToLower().Contains(s) ||
+                x.Location.City.ToLower().Contains(s));
+        }
+
+        var items = await query.OrderBy(x => x.Location.Name).ThenBy(x => x.Name).ToListAsync();
         return items.Select(ToDto);
     }
 
@@ -84,15 +89,13 @@ public class DepartmentService : IDepartmentService
         };
     }
 
-    public async Task<IEnumerable<DepartmentDto>> GetByLocationAsync(int locationId)
-    {
-        var items = await _repository.GetByLocationAsync(locationId);
-        return items.Select(ToDto);
-    }
-
     public async Task<DepartmentDto?> GetByIdAsync(int id)
     {
-        var item = await _repository.GetDetailsByIdAsync(id);
+        var item = await _context.Departments
+            .Include(x => x.Location)
+            .Include(x => x.Contacts)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
         return item == null ? null : ToDto(item);
     }
 
@@ -180,8 +183,10 @@ public class DepartmentService : IDepartmentService
             Address     = dto.Address,
             Notes       = dto.Notes
         };
-        await _repository.AddAsync(entity);
-        await _repository.SaveChangesAsync();
+
+        _context.Departments.Add(entity);
+        await _context.SaveChangesAsync();
+
         await _audit.LogAsync("CREATE", "Department", entity.Id, entity.Name,
             newValues: new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes },
             departmentId: entity.Id);
@@ -189,37 +194,22 @@ public class DepartmentService : IDepartmentService
 
     public async Task UpdateAsync(UpdateDepartmentDto dto)
     {
-        var entity = await _repository.GetDetailsByIdAsync(dto.Id);
+        var entity = await _context.Departments
+            .Include(d => d.Location)
+            .Include(d => d.Contacts)
+            .FirstOrDefaultAsync(d => d.Id == dto.Id);
         if (entity == null) return;
 
         var old = new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes };
-        var locationChanged = entity.LocationId != dto.LocationId;
 
         entity.LocationId  = dto.LocationId;
         entity.Name        = dto.Name;
         entity.Description = dto.Description;
         entity.Address     = dto.Address;
         entity.Notes       = dto.Notes;
-        _repository.Update(entity);
-        await _repository.SaveChangesAsync();
+        entity.UpdatedAt   = DateTime.UtcNow;
 
-        if (locationChanged)
-        {
-            // Device en Network bewaren elk een eigen (gedenormaliseerd)
-            // LocationId — puur voor snelle locatie-gebaseerde queries/filters.
-            // Zonder deze stap zou enkel het departement zelf verhuizen, en
-            // bleven al zijn toestellen/netwerken aan de oude locatie hangen,
-            // wat later inconsistente resultaten geeft op elke plek die
-            // rechtstreeks op LocationId filtert (bv. de locatie-filter op
-            // het toestellenoverzicht, of de locatiedetailpagina).
-            await _context.Devices
-                .Where(d => d.DepartmentId == entity.Id)
-                .ExecuteUpdateAsync(s => s.SetProperty(d => d.LocationId, dto.LocationId));
-
-            await _context.Networks
-                .Where(n => n.DepartmentId == entity.Id)
-                .ExecuteUpdateAsync(s => s.SetProperty(n => n.LocationId, dto.LocationId));
-        }
+        await _context.SaveChangesAsync();
 
         await _audit.LogAsync("UPDATE", "Department", entity.Id, entity.Name,
             oldValues: old,
@@ -229,11 +219,13 @@ public class DepartmentService : IDepartmentService
 
     public async Task DeleteAsync(int id)
     {
-        var entity = await _repository.GetByIdAsync(id);
+        var entity = await _context.Departments.FindAsync(id);
         if (entity == null) return;
         var snapshot = new { entity.Name, entity.Address, entity.LocationId, entity.Description, entity.Notes };
-        _repository.Delete(entity);
-        await _repository.SaveChangesAsync();
+
+        _context.Departments.Remove(entity);
+        await _context.SaveChangesAsync();
+
         await _audit.LogAsync("DELETE", "Department", id, snapshot.Name, oldValues: snapshot, departmentId: id);
     }
 

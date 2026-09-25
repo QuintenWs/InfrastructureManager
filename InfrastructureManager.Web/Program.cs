@@ -6,9 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
-using InfrastructureManager.Application.Interfaces.Repositories;
 using InfrastructureManager.Application.Interfaces.Services;
-using InfrastructureManager.Infrastructure.Repositories;
 using InfrastructureManager.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +39,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// /health geeft een load balancer/uptime-monitor een simpel Healthy/Unhealthy-
+// signaal, inclusief een échte databank-connectiecheck (niet enkel "de app
+// draait" — die zegt niets over of de app ook effectief kan werken).
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("database");
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequiredLength         = 8;
@@ -65,11 +69,14 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
 });
 
-builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
-builder.Services.AddScoped<ILocationRepository,   LocationRepository>();
-builder.Services.AddScoped<IDeviceRepository,     DeviceRepository>();
-builder.Services.AddScoped<INetworkRepository,    NetworkRepository>();
-builder.Services.AddScoped<IContactRepository,    ContactRepository>();
+// Standaard herwaardeert Identity een ingelogde sessie maar elke 30 minuten
+// tegen de database. Voor deactivatie (UsersController.ToggleActive) is dat
+// te traag voor een "sluit deze persoon nu meteen buiten"-scenario — 2
+// minuten is een redelijke middenweg tussen veiligheid en extra DB-load.
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.FromMinutes(2);
+});
 
 builder.Services.AddScoped<IAuditService,               AuditService>();
 builder.Services.AddScoped<IDashboardService,           DashboardService>();
@@ -86,10 +93,11 @@ builder.Services.AddScoped<ITopologyService,            TopologyService>();
 builder.Services.AddScoped<ITemplateService,            TemplateService>();
 builder.Services.AddScoped<IVisitService,               VisitService>();
 builder.Services.AddScoped<IInventoryCheckService,      InventoryCheckService>();
-builder.Services.AddScoped<IHistoryService,             HistoryService>();
+builder.Services.AddScoped<IHistoryService,              HistoryService>();
 builder.Services.AddScoped<IUserAccessService,          UserAccessService>();
 builder.Services.AddScoped<IDeviceDocumentService,      DeviceDocumentService>();
 builder.Services.AddScoped<IDepartmentDocumentService,  DepartmentDocumentService>();
+builder.Services.AddScoped<IExportService,              ExportService>();
 
 var app = builder.Build();
 
@@ -99,10 +107,36 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Standaard hardening-headers voor elke response. De CSP hieronder is
+// bewust conservatief i.p.v. maximaal streng: deze app haalt Bootstrap/
+// Bootstrap Icons/Cytoscape van jsdelivr en gebruikt op meerdere plekken
+// inline <script>-blokken (bv. de topologiedata, filter-toggles) — een
+// strikte CSP zonder 'unsafe-inline'/nonces zou die meteen breken. Deze
+// versie blokkeert wel al <object>/<embed> en het insluiten van de site in
+// een <iframe> op een andere origin, zonder iets te breken.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("Content-Security-Policy",
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+        "img-src 'self' data:; " +
+        "font-src 'self' https://cdn.jsdelivr.net; " +
+        "frame-ancestors 'none'; " +
+        "object-src 'none'");
+    await next();
+});
+
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks("/health");
 
 app.MapControllerRoute(
     name: "default",

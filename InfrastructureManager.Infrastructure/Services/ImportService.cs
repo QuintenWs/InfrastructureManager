@@ -2,9 +2,11 @@ using ClosedXML.Excel;
 using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Domain.Enums;
+using InfrastructureManager.Domain.Helpers;  
 using InfrastructureManager.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using InfrastructureManager.Domain.Exceptions;
 
 namespace InfrastructureManager.Infrastructure.Services;
 
@@ -27,8 +29,10 @@ public interface IImportService
 
 public class ImportService : IImportService
 {
-    private readonly AppDbContext  _context;
-    private readonly IAuditService _audit;
+    private readonly AppDbContext       _context;
+    private readonly IAuditService      _audit;
+    private readonly INetworkService    _networkService;
+
 
     // Vaste kolomposities op het centrale Devices-tabblad
     private const int V_DEPT     = 1;  // Department Name *
@@ -39,10 +43,11 @@ public class ImportService : IImportService
     private const int V_NOTES    = 6;  // Notes (optioneel)
     private const int V_CF_START = 7;  // Custom Field 1, 2, 3... beginnen hier
 
-    public ImportService(AppDbContext context, IAuditService audit)
+    public ImportService(AppDbContext context, IAuditService audit, INetworkService networkService)
     {
         _context = context;
         _audit   = audit;
+        _networkService = networkService;
     }
 
     public async Task<ImportResult> ImportAsync(IFormFile file)
@@ -182,8 +187,7 @@ public class ImportService : IImportService
 
     // ── Networks ──────────────────────────────────────────────────────────────
 
-    private async Task ImportNetworksAsync(
-        IXLWorksheet sheet, List<Department> depts, ImportResult result)
+    private async Task ImportNetworksAsync(IXLWorksheet sheet, List<Department> depts, ImportResult result)
     {
         foreach (var row in DataRows(sheet))
         {
@@ -210,30 +214,39 @@ public class ImportService : IImportService
             if (!bool.TryParse(intStr, out var isInternet))
                 throw new ImportException(sheet.Name, row.RowNumber(), $"'Is Internet Accessible' must be TRUE or FALSE.");
 
-            var ipUint = ParseIp(netAddr);
-            if (ipUint == null)
-                throw new ImportException(sheet.Name, row.RowNumber(), $"'{netAddr}' is not a valid IPv4 address.");
-
-            var mask    = CidrMask(cidr);
-            var network = ipUint.Value & mask;
-            if (network != ipUint.Value)
-                throw new ImportException(sheet.Name, row.RowNumber(),
-                    $"'{netAddr}' is not valid for /{cidr}. Did you mean '{UintToIp(network)}'?");
-
-            var entity = new Network
+            // Loopt nu via NetworkService.CreateAsync, exact hetzelfde pad als de
+            // normale UI — dat bevat zelf al de netwerkadres-validatie (dus de
+            // losse SubnetHelper-checks hierboven zijn niet meer nodig) EN de
+            // overlap-check tussen subnetten binnen hetzelfde departement, die
+            // hiervoor bij import volledig omzeild werd.
+            try
             {
-                DepartmentId = dept.Id, LocationId = dept.LocationId, Name = name,
-                NetworkAddress = netAddr, SubnetMask = subnet, Cidr = cidr,
-                Gateway = gateway, PrimaryDns = priDns,
-                SecondaryDns         = secDns ?? string.Empty,
-                IsDhcpEnabled        = isDhcp,
-                IsInternetAccessible = isInternet,
-                VlanId  = int.TryParse(vlanStr, out var vlan) ? vlan : null,
-                IspName = string.IsNullOrWhiteSpace(isp)   ? null : isp,
-                Notes   = string.IsNullOrWhiteSpace(notes) ? null : notes
-            };
-            _context.Networks.Add(entity);
-            await _context.SaveChangesAsync();
+                await _networkService.CreateAsync(new Application.DTOs.Networks.CreateNetworkDto
+                {
+                    DepartmentId         = dept.Id,
+                    Name                 = name,
+                    NetworkAddress       = netAddr,
+                    SubnetMask           = subnet,
+                    Cidr                 = cidr,
+                    Gateway              = gateway,
+                    PrimaryDns           = priDns,
+                    SecondaryDns         = secDns,
+                    IsDhcpEnabled        = isDhcp,
+                    IsInternetAccessible = isInternet,
+                    VlanId               = int.TryParse(vlanStr, out var vlan) ? vlan : null,
+                    IspName              = string.IsNullOrWhiteSpace(isp)   ? null : isp,
+                    Notes                = string.IsNullOrWhiteSpace(notes) ? null : notes
+                });
+            }
+            catch (SubnetValidationException ex)
+            {
+                throw new ImportException(sheet.Name, row.RowNumber(), ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ImportException(sheet.Name, row.RowNumber(), ex.Message);
+            }
+
             result.NetworksAdded++;
         }
     }
@@ -288,7 +301,6 @@ public class ImportService : IImportService
             var device = new Device
             {
                 DepartmentId = dept.Id,
-                LocationId   = dept.LocationId,
                 NetworkId    = networkId,
                 Name         = name,
                 DeviceType   = definition.DeviceType,
@@ -414,20 +426,6 @@ public class ImportService : IImportService
         var val = row.Cell(col).GetString().Trim();
         return string.IsNullOrWhiteSpace(val) ? null : val;
     }
-
-    private static uint? ParseIp(string ip)
-    {
-        if (!System.Net.IPAddress.TryParse(ip, out var addr)) return null;
-        var b = addr.GetAddressBytes();
-        if (b.Length != 4) return null;
-        return ((uint)b[0] << 24) | ((uint)b[1] << 16) | ((uint)b[2] << 8) | b[3];
-    }
-
-    private static uint CidrMask(int cidr) =>
-        cidr == 0 ? 0u : cidr == 32 ? 0xFFFFFFFFu : 0xFFFFFFFFu << (32 - cidr);
-
-    private static string UintToIp(uint ip) =>
-        $"{(ip >> 24) & 0xFF}.{(ip >> 16) & 0xFF}.{(ip >> 8) & 0xFF}.{ip & 0xFF}";
 
     private static ImportResult Fail(string? sheet, int? row, string msg) => new()
     {

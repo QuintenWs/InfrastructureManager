@@ -5,10 +5,6 @@ namespace InfrastructureManager.Application.Interfaces.Services;
 
 public interface IInventoryCheckService
 {
-    Task<IEnumerable<InventoryCheckSummaryDto>> GetByDepartmentAsync(int departmentId);
-
-    Task<IEnumerable<InventoryCheckSummaryDto>> GetRecentAsync(int take = 10, IReadOnlyCollection<int>? allowedDepartmentIds = null);
-
     Task<InventoryCheckDetailDto?> GetByIdAsync(int id);
 
     Task<int> CreateAsync(CreateInventoryCheckDto dto);
@@ -21,4 +17,15 @@ public interface IInventoryCheckService
     Task<PagedResult<InventoryCheckSummaryDto>> GetByDepartmentPagedAsync(int departmentId, int page, int pageSize);
 
     Task<PagedResult<InventoryCheckSummaryDto>> GetRecentPagedAsync(int page, int pageSize, IReadOnlyCollection<int>? allowedDepartmentIds = null);
+
+    /// <summary>Datum van de meest recente controle voor een departement, of
+    /// null als er nog geen is — vermijdt dat alle controles (met al hun Items)
+    /// geladen moeten worden enkel om de eerste te pakken.</summary>
+    Task<DateTime?> GetLastCheckDateAsync(int departmentId);
+
+    /// <summary>Deletes a registered check. Admin-only from the controller.
+    /// InventoryCheckItem cascades automatically at the DB level (true Cascade,
+    /// not ClientSetNull) — no manual cleanup needed, unlike the SiteVisit
+    /// case above.</summary>
+    Task DeleteAsync(int id);
 }

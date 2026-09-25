@@ -1,42 +1,42 @@
 @{
-    ViewData["Title"] = "Testdata";
+    ViewData["Title"] = "Test Data";
     bool exists = ViewBag.TestDataExists ?? false;
 }
 
 <div class="page-header">
     <div>
-        <div class="page-subtitle">Ontwikkelaarstools</div>
-        <h1 class="page-heading">Testdata genereren</h1>
+        <div class="page-subtitle">Developer Tools</div>
+        <h1 class="page-heading">Generate Test Data</h1>
     </div>
 </div>
 
 <div class="content-card mb-4">
-    <div class="details-section-title">Wat wordt er aangemaakt?</div>
+    <div class="details-section-title">What gets created?</div>
     <p class="text-secondary" style="font-size:.93rem">
-        Eén nieuwe locatie <strong>"Testomgeving"</strong> met een volledige, realistische testset,
-        zodat je alles kan uitproberen zonder je echte gegevens te raken:
+        One new location <strong>"Test Environment"</strong> with a complete, realistic test set,
+        so you can try everything out without touching your real data:
     </p>
     <ul class="text-secondary" style="font-size:.9rem; line-height:1.8">
-        <li>3 testdepartementen, elk met een eigen netwerk</li>
-        <li>12 toestellen, waaronder 3 crypto-toestellen met verschillende sleutel-vervaldatums
-            (1 verlopen, 1 binnenkort, 1 nog lang geldig — om het dashboard-widget te testen)</li>
-        <li>3 contactpersonen</li>
-        <li>Een volledige bezoekhistoriek: een opgelost punt, een punt "in behandeling" en een open punt</li>
-        <li>2 digitale controles, waarvan 1 met een ontbrekend toestel en 1 met een testfoto</li>
-        <li>1 departement bewust zonder bezoeken/controles, om de lege schermen te bekijken</li>
+        <li>3 test departments, each with its own network</li>
+        <li>12 devices, including 3 crypto devices with different key expiry dates
+            (1 expired, 1 expiring soon, 1 still valid for a long time — to test the dashboard widget)</li>
+        <li>3 contacts</li>
+        <li>A full visit history: a resolved item, an "in progress" item and an open item</li>
+        <li>2 digital checks, one with a missing device and one with a test photo</li>
+        <li>1 department deliberately without visits/checks, to view the empty screens</li>
     </ul>
 
     @if (exists)
     {
         <div class="custom-alert alert-info">
             <i class="bi bi-info-circle-fill"></i>
-            <span>Testdata staat er al. Verwijder ze eerst als je opnieuw wil genereren.</span>
+            <span>Test data already exists. Remove it first if you want to generate it again.</span>
         </div>
         <form asp-action="DeleteTestData" method="post"
-              onsubmit="return confirm('Alle testdata (locatie \'Testomgeving\' en alles eronder) verwijderen? Dit kan niet ongedaan gemaakt worden.');">
+              onsubmit="return confirm('Remove all test data (location \'Test Environment\' and everything under it)? This cannot be undone.');">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-danger custom-btn">
-                <i class="bi bi-trash"></i> Testdata verwijderen
+                <i class="bi bi-trash"></i> Remove Test Data
             </button>
         </form>
     }
@@ -45,7 +45,7 @@
         <form asp-action="SeedTestData" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-primary custom-btn">
-                <i class="bi bi-magic"></i> Testdata genereren
+                <i class="bi bi-magic"></i> Generate Test Data
             </button>
         </form>
     }
@@ -54,7 +54,7 @@
 <div class="custom-alert alert-warning">
     <i class="bi bi-exclamation-triangle-fill"></i>
     <span>
-        Dit scherm is enkel bedoeld om te testen. Overweeg deze pagina (of de hele
-        <code>DevToolsController</code>) te verwijderen vlak voor je echt in productie gaat.
+        This screen is for testing purposes only. Consider removing this page (or the entire
+        <code>DevToolsController</code>) right before you go into actual production.
     </span>
 </div>

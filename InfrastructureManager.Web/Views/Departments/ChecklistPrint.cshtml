@@ -1,14 +1,14 @@
 @model InfrastructureManager.Application.DTOs.Departments.DepartmentReportDto
 @{
     Layout = null;
-    ViewData["Title"] = $"Controlelijst – {Model.Name}";
+    ViewData["Title"] = $"Checklist – {Model.Name}";
 }
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@Model.Name – Controlelijst</title>
+    <title>@Model.Name – Checklist</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
 
@@ -129,24 +129,24 @@
 
 <div class="print-controls">
     <button class="btn-print" onclick="window.print()">
-        &#x1F5A8; Afdrukken
+        &#x1F5A8; Print
     </button>
     <a class="btn-back"
        href="@Url.Action("Details", "Departments", new { id = Model.Id })">
-        ← Terug
+        ← Back
     </a>
 </div>
 
 <div class="report-page">
 
     <div class="report-header">
-        <h1 class="report-title">Controlelijst — @Model.Name</h1>
+        <h1 class="report-title">Checklist — @Model.Name</h1>
         <div class="report-subtitle">
             @Model.LocationName, @Model.LocationCity &nbsp;·&nbsp; @Model.Address
         </div>
         <div class="report-meta">
-            Blanco lijst — ter plaatse in te vullen &nbsp;·&nbsp;
-            Aangemaakt @Model.GeneratedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            Blank list — to be filled in on site &nbsp;·&nbsp;
+            Created @Model.GeneratedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
         </div>
     </div>
 
@@ -155,11 +155,11 @@
         <table>
             <thead>
                 <tr>
-                    <th>Toestel</th>
+                    <th>Device</th>
                     <th>Type</th>
-                    <th>Netwerk</th>
-                    <th class="checkbox-col">Aanwezig</th>
-                    <th class="remark-col">Opmerkingen</th>
+                    <th>Network</th>
+                    <th class="checkbox-col">Present</th>
+                    <th class="remark-col">Remarks</th>
                 </tr>
             </thead>
             <tbody>
@@ -178,15 +178,15 @@
     }
     else
     {
-        <p>Geen toestellen in dit departement.</p>
+        <p>No devices in this department.</p>
     }
 
     <div class="signature-block">
         <div>
-            <div class="signature-line">Naam &amp; handtekening</div>
+            <div class="signature-line">Name &amp; signature</div>
         </div>
         <div>
-            <div class="signature-line">Datum</div>
+            <div class="signature-line">Date</div>
         </div>
     </div>
 

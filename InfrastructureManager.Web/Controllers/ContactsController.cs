@@ -15,16 +15,19 @@ public class ContactsController : Controller
     private readonly IContactService    _contactService;
     private readonly IDepartmentService _departmentService;
     private readonly IUserAccessService _userAccessService;
+    private readonly IExportService          _exportService;
     private const int PageSize = 20;
 
     public ContactsController(
         IContactService    contactService,
         IDepartmentService departmentService,
-        IUserAccessService userAccessService)
+        IUserAccessService userAccessService,
+        IExportService         exportService)
     {
         _contactService    = contactService;
         _departmentService = departmentService;
         _userAccessService = userAccessService;
+        _exportService         = exportService;
     }
 
     [HttpGet]
@@ -36,33 +39,54 @@ public class ContactsController : Controller
         var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
         var paged = await _contactService.GetPagedAsync(search, departmentId, page, PageSize, allowed);
 
-        var vm = paged.Items.Select(x => new ContactListViewModel
+        var vm = new ContactIndexViewModel
         {
-            Id             = x.Id,
-            FullName       = x.FullName,
-            Email          = x.Email,
-            Phone          = x.Phone,
-            Role           = x.Role,
-            DepartmentName = x.DepartmentName,
-            LocationName   = x.LocationName
-        });
-
-        ViewBag.Search       = search;
-        ViewBag.DepartmentId = departmentId;
-        ViewBag.Departments  = await GetDepartmentsAsync();
-        ViewBag.Pagination   = new PaginationViewModel
-        {
-            CurrentPage = paged.Page,
-            TotalPages  = paged.TotalPages,
-            TotalCount  = paged.TotalCount,
-            RouteValues = new Dictionary<string, string>
+            Items = paged.Items.Select(x => new ContactListViewModel
             {
-                ["search"]       = search ?? "",
-                ["departmentId"] = departmentId?.ToString() ?? ""
+                Id             = x.Id,
+                FullName       = x.FullName,
+                Email          = x.Email,
+                Phone          = x.Phone,
+                Role           = x.Role,
+                DepartmentName = x.DepartmentName,
+                LocationName   = x.LocationName
+            }),
+            Search       = search,
+            DepartmentId = departmentId,
+            Departments  = await GetDepartmentsAsync(),
+            Pagination = new PaginationViewModel
+            {
+                CurrentPage = paged.Page,
+                TotalPages  = paged.TotalPages,
+                TotalCount  = paged.TotalCount,
+                RouteValues = new Dictionary<string, string>
+                {
+                    ["search"]       = search ?? "",
+                    ["departmentId"] = departmentId?.ToString() ?? ""
+                }
             }
         };
 
         return View(vm);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Export(string? search, int? departmentId)
+    {
+        if (departmentId.HasValue && !await _userAccessService.CanAccessDepartmentAsync(User, departmentId.Value))
+            return RedirectToAction("AccessDenied", "Auth");
+
+        var allowed = await _userAccessService.GetAccessibleDepartmentIdsAsync(User);
+
+        // Hergebruikt GetPagedAsync met een zeer grote pageSize i.p.v. een
+        // nieuwe "GetAllFiltered"-methode toe te voegen — IContactService.
+        // GetAllAsync werd net in stap 5 als dode code verwijderd, en een derde
+        // "alles ophalen"-variant zou dezelfde soort duplicatie herintroduceren
+        // die dat opruimwerk net wegnam.
+        var paged = await _contactService.GetPagedAsync(search, departmentId, page: 1, pageSize: int.MaxValue, allowed);
+        var bytes = _exportService.ExportContacts(paged.Items);
+        var fileName = $"Contacts_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     [HttpGet]

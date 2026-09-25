@@ -44,13 +44,13 @@ public class CreateUserViewModel
     public string Password { get; set; } = string.Empty;
 
     [Required]
-    [Display(Name = "Rol")]
+    [Display(Name = "Role")]
     public string Role { get; set; } = "Viewer";
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; } = true;
 
-    [Display(Name = "Toegangsgroepen")]
+    [Display(Name = "Access Groups")]
     public List<int> AccessGroupIds { get; set; } = new();
 
     public IEnumerable<SelectListItem> AvailableGroups { get; set; } = new List<SelectListItem>();
@@ -81,16 +81,16 @@ public class EditUserViewModel
     public string? NewPassword { get; set; }
 
     [Required]
-    [Display(Name = "Rol")]
+    [Display(Name = "Role")]
     public string Role { get; set; } = "Viewer";
 
     [Display(Name = "Active")]
     public bool IsActive { get; set; }
 
-    [Display(Name = "Mag geschiedenis bekijken (individueel)")]
+    [Display(Name = "Can view history (individual)")]
     public bool CanViewHistory { get; set; }
 
-    [Display(Name = "Toegangsgroepen")]
+    [Display(Name = "Access Groups")]
     public List<int> AccessGroupIds { get; set; } = new();
 
     public IEnumerable<SelectListItem> AvailableGroups { get; set; } = new List<SelectListItem>();

@@ -96,17 +96,17 @@
             </a>
 
             <a asp-controller="Visits" asp-action="Index"
-               class="nav-item @(currentController == "Visits" ? "active" : "")"
-               title="Bezoeken">
-                <i class="bi bi-clipboard-check"></i>
-                <span>Bezoeken</span>
+                class="nav-item @(currentController == "Visits" ? "active" : "")"
+                title="Visits">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Visits</span>
             </a>
 
-            <a asp-controller="InventoryChecks" asp-action="Index"
-               class="nav-item @(currentController == "InventoryChecks" ? "active" : "")"
-               title="Controles">
-                <i class="bi bi-clipboard-data"></i>
-                <span>Controles</span>
+                <a asp-controller="InventoryChecks" asp-action="Index"
+                class="nav-item @(currentController == "InventoryChecks" ? "active" : "")"
+                title="Checks">
+                    <i class="bi bi-clipboard-data"></i>
+                    <span>Checks</span>
             </a>
 
             <a asp-controller="Contacts" asp-action="Index"
@@ -119,10 +119,10 @@
             @if (canViewHistory)
             {
                 <a asp-controller="History" asp-action="Index"
-                   class="nav-item @(currentController == "History" ? "active" : "")"
-                   title="Geschiedenis">
+                class="nav-item @(currentController == "History" ? "active" : "")"
+                title="History">
                     <i class="bi bi-clock-history"></i>
-                    <span>Geschiedenis</span>
+                    <span>History</span>
                 </a>
             }
 
@@ -138,10 +138,10 @@
                 </a>
 
                 <a asp-controller="AccessGroups" asp-action="Index"
-                   class="nav-item @(currentController == "AccessGroups" ? "active" : "")"
-                   title="Toegangsgroepen">
-                    <i class="bi bi-people-fill"></i>
-                    <span>Toegangsgroepen</span>
+                    class="nav-item @(currentController == "AccessGroups" ? "active" : "")"
+                    title="Access Groups">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Access Groups</span>
                 </a>
 
                 <a asp-controller="Import" asp-action="Index"
@@ -159,10 +159,10 @@
                 </a>
 
                 <a asp-controller="DevTools" asp-action="Index"
-                   class="nav-item @(currentController == "DevTools" ? "active" : "")"
-                   title="Testdata">
-                    <i class="bi bi-magic"></i>
-                    <span>Testdata</span>
+                    class="nav-item @(currentController == "DevTools" ? "active" : "")"
+                    title="Test Data">
+                        <i class="bi bi-magic"></i>
+                        <span>Test Data</span>
                 </a>
             }
 
@@ -180,7 +180,7 @@
                         <i class="bi bi-search"></i>
                         <input type="text"
                                name="q"
-                               placeholder="Zoek toestellen, contacten, bezoeken..."
+                               placeholder="Search devices, contacts, visits..."
                                value="@(currentController == "Search"
                                        ? Context.Request.Query["q"].ToString()
                                        : string.Empty)" />

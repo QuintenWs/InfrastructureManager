@@ -1,3 +1,5 @@
+using InfrastructureManager.Web.ViewModels.Shared;
+
 namespace InfrastructureManager.Web.ViewModels.Departments;
 
 public class DepartmentListViewModel
@@ -11,4 +13,11 @@ public class DepartmentListViewModel
 
     /// <summary>Open + in-progress action items for this department — see Visits.</summary>
     public int OpenActionItemCount { get; set; }
+}
+
+public class DepartmentIndexViewModel
+{
+    public IEnumerable<DepartmentListViewModel> Items { get; set; } = new List<DepartmentListViewModel>();
+    public string? Search { get; set; }
+    public PaginationViewModel Pagination { get; set; } = new();
 }

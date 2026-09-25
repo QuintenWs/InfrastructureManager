@@ -1,14 +1,14 @@
 @model InfrastructureManager.Web.ViewModels.History.HistoryIndexViewModel
 
 @{
-    ViewData["Title"] = "Geschiedenis";
+    ViewData["Title"] = "History";
     var f = Model.Filter;
 }
 
 <div class="page-header">
     <div>
         <div class="page-subtitle">Audit trail</div>
-        <h1 class="page-heading">Geschiedenis</h1>
+        <h1 class="page-heading">History</h1>
     </div>
 </div>
 
@@ -17,9 +17,9 @@
         <div class="row g-3 align-items-end">
 
             <div class="col-md-3">
-                <label class="filter-label">Gebruiker</label>
+                <label class="filter-label">User</label>
                 <select name="UserId" class="form-select form-select-sm">
-                    <option value="">Alle gebruikers</option>
+                    <option value="">All users</option>
                     @foreach (var u in Model.Users)
                     {
                         if (u.Value == f.UserId)
@@ -37,7 +37,7 @@
             <div class="col-md-3">
                 <label class="filter-label">Type</label>
                 <select name="EntityType" class="form-select form-select-sm">
-                    <option value="">Alle types</option>
+                    <option value="">All types</option>
                     @foreach (var t in Model.EntityTypes)
                     {
                         if (t.Value == f.EntityType)
@@ -53,19 +53,19 @@
             </div>
 
             <div class="col-md-3">
-                <label class="filter-label">Zoeken (naam)</label>
+                <label class="filter-label">Search (name)</label>
                 <input type="text" name="Search" value="@f.Search" class="form-control form-control-sm"
-                       placeholder="bv. SW-TEST-01, Serverruimte..." />
+                       placeholder="e.g. SW-TEST-01, Server Room..." />
             </div>
 
             <div class="col-md-1-5" style="flex:0 0 auto; width:12.5%">
-                <label class="filter-label">Van</label>
+                <label class="filter-label">From</label>
                 <input type="date" name="FromDate" value="@(f.FromDate?.ToString("yyyy-MM-dd"))"
                        class="form-control form-control-sm" />
             </div>
 
             <div class="col-md-1-5" style="flex:0 0 auto; width:12.5%">
-                <label class="filter-label">Tot</label>
+                <label class="filter-label">To</label>
                 <input type="date" name="ToDate" value="@(f.ToDate?.ToString("yyyy-MM-dd"))"
                        class="form-control form-control-sm" />
             </div>
@@ -78,16 +78,16 @@
             <div class="mt-3">
                 <span class="status-badge status-active">
                     <i class="bi bi-funnel-fill me-1"></i>
-                    Gefilterd op één specifiek record
+                    Filtered to one specific record
                     <a asp-action="Index" asp-route-EntityType="@f.EntityType"
-                       class="ms-2 text-decoration-underline" style="color:inherit">wis deze filter</a>
+                       class="ms-2 text-decoration-underline" style="color:inherit">clear this filter</a>
                 </span>
             </div>
         }
 
         <div class="d-flex gap-2 mt-3">
             <button type="submit" class="btn btn-primary custom-btn">
-                <i class="bi bi-funnel"></i> Filteren
+                <i class="bi bi-funnel"></i> Filter
             </button>
             <a asp-action="Index" class="btn btn-light custom-btn">Reset</a>
         </div>
@@ -99,14 +99,14 @@
     {
         <div class="empty-state py-4">
             <div class="empty-icon"><i class="bi bi-clock-history"></i></div>
-            <div class="empty-title">Geen resultaten</div>
-            <div class="empty-description">Pas de filters aan.</div>
+            <div class="empty-title">No results</div>
+            <div class="empty-description">Adjust the filters.</div>
         </div>
     }
     else
     {
         <div class="table-meta mb-3">
-            @Model.Result.TotalCount resultaten &nbsp;·&nbsp; pagina @Model.Result.Page van @Model.Result.TotalPages
+            @Model.Result.TotalCount results &nbsp;·&nbsp; page @Model.Result.Page of @Model.Result.TotalPages
         </div>
 
         <div class="activity-feed">
@@ -132,7 +132,7 @@
                             </button>
                             <div id="@entryId" class="activity-changes" style="display:none">
                                 <table class="table table-sm mt-2 mb-0" style="font-size:.82rem">
-                                    <thead><tr><th style="width:30%">Veld</th><th>Was</th><th>Werd</th></tr></thead>
+                                    <thead><tr><th style="width:30%">Field</th><th>Before</th><th>After</th></tr></thead>
                                     <tbody>
                                         @foreach (var change in entry.Changes)
                                         {
@@ -153,7 +153,7 @@
                 </div>
             }
         </div>
-                    <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
+                    <partial name="_Pagination" model="Model.Pagination" />
     }
 </div>
 
@@ -193,11 +193,11 @@
 
     string GetActionLabel(string a) => a switch
     {
-        "CREATE" => "maakte aan:",
-        "UPDATE" => "wijzigde:",
-        "DELETE" => "verwijderde:",
-        "NOTE"   => "voegde notitie toe bij:",
-        "CHECK"  => "controleerde:",
+        "CREATE" => "created:",
+        "UPDATE" => "updated:",
+        "DELETE" => "deleted:",
+        "NOTE"   => "added a note to:",
+        "CHECK"  => "checked:",
         _        => a.ToLower() + ":"
     };
 

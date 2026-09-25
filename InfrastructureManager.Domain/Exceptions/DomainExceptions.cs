@@ -19,3 +19,11 @@ public class SubnetValidationException : Exception
 {
     public SubnetValidationException(string message) : base(message) { }
 }
+
+/// <summary>Thrown when a device custom-field value's format doesn't match
+/// its FieldType (e.g. non-numeric text in a "number" field), or a required
+/// field was left empty.</summary>
+public class DeviceFieldValidationException : Exception
+{
+    public DeviceFieldValidationException(string message) : base(message) { }
+}

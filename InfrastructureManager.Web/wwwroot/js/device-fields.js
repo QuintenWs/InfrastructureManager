@@ -12,7 +12,8 @@
 var DeviceFields = (function () {
     'use strict';
 
-    var _config = {};
+    var _config  = {};
+    var _loading = false;
 
     function init(config) {
         _config = config;
@@ -27,8 +28,15 @@ var DeviceFields = (function () {
         });
     }
 
+    function isLoading() {
+        return _loading;
+    }
+
     function loadFields(deviceTypeValue) {
         if (!deviceTypeValue) return;
+
+        _loading = true;
+        document.dispatchEvent(new CustomEvent('devicefields:loadstart'));
 
         var url = _config.apiUrl + '?deviceType=' + encodeURIComponent(deviceTypeValue);
         if (_config.deviceId) {
@@ -37,8 +45,16 @@ var DeviceFields = (function () {
 
         fetch(url)
             .then(function (res) { return res.json(); })
-            .then(function (fields) { renderFields(fields); })
-            .catch(function (err) { console.error('device-fields error:', err); });
+            .then(function (fields) {
+                renderFields(fields);
+            })
+            .catch(function (err) {
+                console.error('device-fields error:', err);
+            })
+            .finally(function () {
+                _loading = false;
+                document.dispatchEvent(new CustomEvent('devicefields:loadend'));
+            });
     }
 
     function renderFields(fields) {
@@ -153,6 +169,16 @@ var DeviceFields = (function () {
         input.value     = field.currentValue || '';
         input.required  = field.isRequired;
 
+        // Markeert dit veld als "IP-adresveld", ongeacht of het gekozen
+        // FieldType hieronder "ipv4"/"ipv6" is of gewoon "text" (zoals de
+        // meeste geseede device types, bv. Laptop's ip_address-veld) — zelfde
+        // criterium als DeviceFieldHelpers.IsIpAddressField server-side.
+        // suggest-ip.js zoekt hier rechtstreeks op via de DOM, in plaats van
+        // op een apart bijgehouden lijst die kon verouderen.
+        if (field.fieldType === 'ipv4' || field.fieldType === 'ipv6' || field.fieldKey === 'ip_address') {
+            input.dataset.ipField = 'true';
+        }
+
         switch (field.fieldType) {
 
             case 'number':
@@ -225,8 +251,6 @@ var DeviceFields = (function () {
         var val = this.value.trim();
         if (!val) return;
 
-        // Loose check: contains colons, only hex digits and colons
-        // Full IPv6 validation is complex — this catches obvious mistakes
         var valid = /^[0-9a-fA-F:]+$/.test(val) &&
                     val.indexOf(':') !== -1 &&
                     val.length >= 2 &&
@@ -259,5 +283,15 @@ var DeviceFields = (function () {
         }
     }
 
-    return { init: init };
+    // Verzamelt de <input>-elementen van de momenteel gerenderde velden die
+    // een IP-adres voorstellen — rechtstreeks uit de DOM, gemarkeerd via
+    // data-ip-field in buildInput() hierboven. Geen aparte, mogelijk
+    // verouderde array meer nodig.
+    function getIpFieldInputs() {
+        var container = document.getElementById(_config.containerId);
+        if (!container) return [];
+        return Array.prototype.slice.call(container.querySelectorAll('[data-ip-field="true"]'));
+    }
+
+    return { init: init, isLoading: isLoading, getIpFieldInputs: getIpFieldInputs };
 })();

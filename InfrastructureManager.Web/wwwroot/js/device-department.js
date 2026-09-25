@@ -24,20 +24,22 @@
                 return;
             }
 
-            fetch(apiUrl + '?departmentId=' + encodeURIComponent(departmentId))
-                .then(function (r) { return r.json(); })
-                .then(function (networks) {
-                    networkSelect.innerHTML = '<option value="">No network</option>';
-                    networks.forEach(function (n) {
-                        var opt = document.createElement('option');
-                        opt.value       = n.value;
-                        opt.textContent = n.text;
-                        if (selectValue && String(n.value) === String(selectValue))
-                            opt.selected = true;
-                        networkSelect.appendChild(opt);
-                    });
-                })
-                .catch(function (e) { console.error('device-department error:', e); });
+            // na
+        fetch(apiUrl + '?departmentId=' + encodeURIComponent(departmentId))
+            .then(function (r) { return r.json(); })
+            .then(function (networks) {
+                networkSelect.innerHTML = '<option value="">No network</option>';
+                networks.forEach(function (n) {
+                    var opt = document.createElement('option');
+                    opt.value       = n.value;
+                    opt.textContent = n.text;
+                    if (selectValue && String(n.value) === String(selectValue))
+                        opt.selected = true;
+                    networkSelect.appendChild(opt);
+                });
+                networkSelect.dispatchEvent(new Event('change'));
+            })
+            .catch(function (e) { console.error('device-department error:', e); });
         }
 
         // On department change: reload networks, clear current selection

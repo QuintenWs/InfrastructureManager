@@ -1,19 +1,19 @@
 @model InfrastructureManager.Web.ViewModels.InventoryChecks.InventoryCheckIndexViewModel
 
 @{
-    ViewData["Title"] = "Controles";
+    ViewData["Title"] = "Checks";
     var list = Model.SelectedDepartmentId.HasValue ? Model.Checks : Model.RecentChecks;
 }
 
 <div class="page-header">
     <div>
-        <div class="page-subtitle">Inventariscontrole</div>
-        <h1 class="page-heading">Controles</h1>
+        <div class="page-subtitle">Inventory Check</div>
+        <h1 class="page-heading">Checks</h1>
     </div>
     @if (Model.SelectedDepartmentId.HasValue && User.IsEditorOrAdmin())
     {
         <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId" class="btn btn-primary custom-btn">
-            <i class="bi bi-clipboard-check"></i> Nieuwe controle
+            <i class="bi bi-clipboard-check"></i> New Check
         </a>
     }
 </div>
@@ -21,9 +21,9 @@
 <div class="content-card mb-4">
     <form method="get" class="row g-3 align-items-end">
         <div class="col-md-6">
-            <label class="form-label fw-semibold">Departement</label>
+            <label class="form-label fw-semibold">Department</label>
             <select name="departmentId" class="form-select" onchange="this.form.submit()">
-                <option value="">— recente controles, alle departementen —</option>
+                <option value="">— recent checks, all departments —</option>
                 @foreach (var d in Model.Departments)
                 {
                     if (d.Value == Model.SelectedDepartmentId?.ToString())
@@ -39,7 +39,7 @@
         </div>
         <div class="col-md-3">
             <button type="submit" class="btn btn-light custom-btn w-100">
-                <i class="bi bi-funnel"></i> Bekijken
+                <i class="bi bi-funnel"></i> View
             </button>
         </div>
         @if (Model.SelectedDepartmentId.HasValue)
@@ -47,7 +47,7 @@
             <div class="col-md-3">
                 <a asp-controller="Departments" asp-action="ChecklistPrint" asp-route-id="@Model.SelectedDepartmentId"
                    target="_blank" class="btn btn-light custom-btn w-100">
-                    <i class="bi bi-printer"></i> Blanco afdrukken
+                    <i class="bi bi-printer"></i> Print blank
                 </a>
             </div>
         }
@@ -56,18 +56,18 @@
 
 <div class="content-card">
     <div class="card-header-custom">
-        <h3>@(Model.SelectedDepartmentId.HasValue ? "Controlehistoriek" : "Recente controles — alle departementen")</h3>
+        <h3>@(Model.SelectedDepartmentId.HasValue ? "Check history" : "Recent checks — all departments")</h3>
     </div>
 
     @if (!list.Any())
     {
         <div class="empty-state py-4">
             <div class="empty-icon"><i class="bi bi-clipboard-x"></i></div>
-            <div class="empty-title">Nog geen controles</div>
+            <div class="empty-title">No checks yet</div>
             <div class="empty-description">
                 @(Model.SelectedDepartmentId.HasValue
-                    ? "Dit departement is nog niet digitaal gecontroleerd."
-                    : "Er zijn nog geen controles geregistreerd.")
+                    ? "This department has not been digitally checked yet."
+                    : "No checks have been registered yet.")
             </div>
         </div>
     }
@@ -78,12 +78,12 @@
                 <tr>
                     @if (!Model.SelectedDepartmentId.HasValue)
                     {
-                        <th>Departement</th>
+                        <th>Department</th>
                     }
-                    <th>Datum</th>
-                    <th>Door</th>
-                    <th>Aanwezig</th>
-                    <th>Ontbreekt</th>
+                    <th>Date</th>
+                    <th>By</th>
+                    <th>Present</th>
+                    <th>Missing</th>
                     <th></th>
                 </tr>
             </thead>
@@ -112,12 +112,12 @@
                             }
                         </td>
                         <td class="text-end">
-                            <a asp-action="Details" asp-route-id="@check.Id" class="btn btn-sm btn-light">Bekijken</a>
+                            <a asp-action="Details" asp-route-id="@check.Id" class="btn btn-sm btn-light">View</a>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
-                <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
+                <partial name="_Pagination" model="Model.Pagination" />
     }
 </div>

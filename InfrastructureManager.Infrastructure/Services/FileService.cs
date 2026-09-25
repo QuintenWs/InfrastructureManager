@@ -36,7 +36,7 @@ public class FileService : IFileService
         {
             try
             {
-                ValidateFile(file);
+                await ValidateFileAsync(file);
 
                 using var ms = new MemoryStream();
                 await file.CopyToAsync(ms);
@@ -106,7 +106,7 @@ public class FileService : IFileService
         return (photo.ImageData, photo.ContentType, photo.FileName, photo.DepartmentId);
     }
 
-    private static void ValidateFile(IFormFile file)
+    private static async Task ValidateFileAsync(IFormFile file)
     {
         if (file.Length == 0)
             throw new ArgumentException($"'{file.FileName}' is empty.");
@@ -120,5 +120,44 @@ public class FileService : IFileService
 
         if (file.FileName.Length > 260)
             throw new ArgumentException("Filename too long.");
+
+        // Defense-in-depth: Content-Type hierboven komt rechtstreeks van de
+        // client en kan vervalst worden. Deze check leest de eerste bytes van
+        // het bestand zelf en vergelijkt met de bekende "magic numbers" van elk
+        // toegestaan formaat, zodat een bestand dat zich enkel via zijn header
+        // voordoet als een afbeelding (maar dat niet is) alsnog geweigerd wordt.
+        if (!await LooksLikeAllowedImageAsync(file))
+            throw new ArgumentException(
+                $"'{file.FileName}' does not appear to be a valid image file.");
+    }
+
+    private static async Task<bool> LooksLikeAllowedImageAsync(IFormFile file)
+    {
+        var header = new byte[12];
+        await using var stream = file.OpenReadStream();
+        var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
+        stream.Position = 0; // teruggezet zodat de effectieve upload verderop het volledige bestand nog kan lezen
+
+        if (read < 4) return false;
+
+        // JPEG: FF D8 FF
+        if (header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF) return true;
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (read >= 8 &&
+            header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47 &&
+            header[4] == 0x0D && header[5] == 0x0A && header[6] == 0x1A && header[7] == 0x0A) return true;
+
+        // GIF: "GIF87a" of "GIF89a"
+        if (read >= 6 &&
+            header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 &&
+            header[3] == 0x38 && (header[4] == 0x37 || header[4] == 0x39) && header[5] == 0x61) return true;
+
+        // WebP: "RIFF" .... "WEBP" (bytes 8-11)
+        if (read >= 12 &&
+            header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
+            header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50) return true;
+
+        return false;
     }
 }

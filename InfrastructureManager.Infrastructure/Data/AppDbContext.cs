@@ -71,9 +71,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.SubnetMask).HasMaxLength(50).IsRequired();
             entity.Property(x => x.Gateway).HasMaxLength(50).IsRequired();
             entity.HasOne(x => x.Department).WithMany(x => x.Networks)
-                .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.Location).WithMany(x => x.Networks)
-                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.NoAction);
+                .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);   
         });
 
         builder.Entity<Device>(entity =>
@@ -81,8 +79,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
             entity.HasOne(x => x.Department).WithMany(x => x.Devices)
                 .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.Location).WithMany(x => x.Devices)
-                .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(x => x.Network).WithMany(x => x.Devices)
                 .HasForeignKey(x => x.NetworkId).OnDelete(DeleteBehavior.NoAction);
         });
@@ -265,17 +261,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(x => x.AccessGroup).WithMany(x => x.Grants)
                 .HasForeignKey(x => x.AccessGroupId).OnDelete(DeleteBehavior.Cascade);
 
-            // Department-grant cascadeert normaal: Location -> Department is
-            // al een cascade-pad, dit is dus het enige pad naar hier.
             entity.HasOne(x => x.Department).WithMany()
                 .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
 
-            // ClientSetNull (niet Cascade): Location cascadeert al naar
-            // Department, dat op zijn beurt hierboven naar deze tabel
-            // cascadeert via DepartmentId. Een tweede, rechtstreeks
-            // cascade-pad vanaf Location via LocationId zou SQL Server het
-            // schema doen weigeren ("multiple cascade paths") — zelfde
-            // redenering als bij ActionItem/InventoryCheckItem hierboven.
             entity.HasOne(x => x.Location).WithMany()
                 .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.ClientSetNull);
 
@@ -283,6 +271,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .IsUnique().HasFilter("[DepartmentId] IS NOT NULL");
             entity.HasIndex(x => new { x.AccessGroupId, x.LocationId })
                 .IsUnique().HasFilter("[LocationId] IS NOT NULL");
+
+            // Enkel de service-methodes AddDepartmentGrantToGroupAsync/
+            // AddLocationGrantToGroupAsync (UserAccessService) mogen deze rijen
+            // aanmaken, en die vullen bewust maar één van de twee velden in — maar
+            // niets hield tot nu toe een rechtstreekse _context.Add(...) of een
+            // toekomstige, minder zorgvuldige methode tegen om per ongeluk beide of
+            // geen van beide in te vullen. Deze constraint dwingt dat nu ook af op
+            // databankniveau.
+            entity.ToTable(t => t.HasCheckConstraint(
+                "CK_AccessGroupGrant_ExactlyOneScope",
+                "([DepartmentId] IS NOT NULL AND [LocationId] IS NULL) OR ([DepartmentId] IS NULL AND [LocationId] IS NOT NULL)"));
         });
 
         builder.Entity<UserAccessGroup>(entity =>
@@ -311,7 +310,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(x => x.Department).WithMany()
                 .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
 
-            // Zelfde redenering als AccessGroupGrant.LocationId hierboven.
             entity.HasOne(x => x.Location).WithMany()
                 .HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.ClientSetNull);
 
@@ -319,6 +317,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .IsUnique().HasFilter("[DepartmentId] IS NOT NULL");
             entity.HasIndex(x => new { x.UserId, x.LocationId })
                 .IsUnique().HasFilter("[LocationId] IS NOT NULL");
+
+            // Zelfde redenering als AccessGroupGrant hierboven.
+            entity.ToTable(t => t.HasCheckConstraint(
+                "CK_UserAccessGrant_ExactlyOneScope",
+                "([DepartmentId] IS NOT NULL AND [LocationId] IS NULL) OR ([DepartmentId] IS NULL AND [LocationId] IS NOT NULL)"));
         });
     }
 }

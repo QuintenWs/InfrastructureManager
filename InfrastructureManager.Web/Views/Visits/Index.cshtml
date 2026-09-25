@@ -1,20 +1,20 @@
 @model InfrastructureManager.Web.ViewModels.Visits.VisitIndexViewModel
 
 @{
-    ViewData["Title"] = "Bezoeken";
+    ViewData["Title"] = "Visits";
     var canEdit = User.IsEditorOrAdmin();
 }
 
 <div class="page-header">
     <div>
-        <div class="page-subtitle">Opvolging ter plaatse</div>
-        <h1 class="page-heading">Bezoeken &amp; Actiepunten</h1>
+        <div class="page-subtitle">Field follow-up</div>
+        <h1 class="page-heading">Visits &amp; Action Items</h1>
     </div>
     @if (Model.SelectedDepartmentId.HasValue && canEdit)
     {
         <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId"
            class="btn btn-primary custom-btn">
-            <i class="bi bi-plus-lg"></i> Nieuw bezoek registreren
+            <i class="bi bi-plus-lg"></i> Register new visit
         </a>
     }
 </div>
@@ -22,9 +22,9 @@
 <div class="content-card mb-4">
     <form method="get" class="row g-3 align-items-end">
         <div class="col-md-6">
-            <label class="form-label fw-semibold">Departement</label>
+            <label class="form-label fw-semibold">Department</label>
             <select name="departmentId" class="form-select" onchange="this.form.submit()">
-                <option value="">— alle departementen (open actiepunten) —</option>
+                <option value="">— all departments (open action items) —</option>
                 @foreach (var d in Model.Departments)
                 {
                     if (d.Value == Model.SelectedDepartmentId?.ToString())
@@ -40,7 +40,7 @@
         </div>
         <div class="col-md-3">
             <button type="submit" class="btn btn-light custom-btn w-100">
-                <i class="bi bi-funnel"></i> Bekijken
+                <i class="bi bi-funnel"></i> View
             </button>
         </div>
     </form>
@@ -50,7 +50,7 @@
 {
     <div class="content-card">
         <div class="card-header-custom d-flex justify-content-between align-items-center">
-            <h3>Open actiepunten — alle departementen</h3>
+            <h3>Open action items — all departments</h3>
             @if (Model.GlobalOpenItems.Any())
             {
                 <span class="table-meta">@Model.GlobalOpenItems.Count item@(Model.GlobalOpenItems.Count == 1 ? "" : "s")</span>
@@ -61,8 +61,8 @@
         {
             <div class="empty-state py-4">
                 <div class="empty-icon"><i class="bi bi-clipboard-check"></i></div>
-                <div class="empty-title">Niets openstaand</div>
-                <div class="empty-description">Alle departementen zijn helemaal bij.</div>
+                <div class="empty-title">Nothing outstanding</div>
+                <div class="empty-description">All departments are fully up to date.</div>
             </div>
         }
         else
@@ -70,11 +70,11 @@
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Departement</th>
-                        <th>Omschrijving</th>
-                        <th>Prioriteit</th>
+                        <th>Department</th>
+                        <th>Description</th>
+                        <th>Priority</th>
                         <th>Status</th>
-                        <th>Sinds</th>
+                        <th>Since</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -98,7 +98,7 @@
                                     <form asp-action="SetInProgress" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="actionItemId" value="@item.Id" />
-                                        <button type="submit" class="btn btn-sm btn-light">In behandeling</button>
+                                        <button type="submit" class="btn btn-sm btn-light">In Progress</button>
                                     </form>
                                 }
                             </td>
@@ -106,7 +106,7 @@
                     }
                 </tbody>
             </table>
-                    <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
+                    <partial name="_Pagination" model="Model.Pagination" />
         }
     </div>
 }
@@ -116,7 +116,7 @@ else
         <div class="details-main">
             <div class="content-card mb-4">
                 <div class="card-header-custom d-flex justify-content-between align-items-center">
-                    <h3>Open actiepunten</h3>
+                    <h3>Open action items</h3>
                     @if (Model.OpenItems.Any())
                     {
                         <span class="table-meta">@Model.OpenItems.Count item@(Model.OpenItems.Count == 1 ? "" : "s")</span>
@@ -124,13 +124,13 @@ else
                 </div>
                 @if (!Model.OpenItems.Any())
                 {
-                    <div class="empty-notes">Geen openstaande punten voor dit departement.</div>
+                    <div class="empty-notes">No open items for this department.</div>
                 }
                 else
                 {
                     <table class="table align-middle">
                         <thead>
-                            <tr><th>Omschrijving</th><th>Prioriteit</th><th>Status</th><th>Sinds</th><th></th></tr>
+                            <tr><th>Description</th><th>Priority</th><th>Status</th><th>Since</th><th></th></tr>
                         </thead>
                         <tbody>
                             @foreach (var item in Model.OpenItems)
@@ -147,7 +147,7 @@ else
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="actionItemId" value="@item.Id" />
                                                 <input type="hidden" name="departmentId" value="@Model.SelectedDepartmentId" />
-                                                <button type="submit" class="btn btn-sm btn-light">In behandeling</button>
+                                                <button type="submit" class="btn btn-sm btn-light">In Progress</button>
                                             </form>
                                         }
                                     </td>
@@ -159,10 +159,10 @@ else
             </div>
 
             <div class="content-card">
-                <div class="card-header-custom"><h3>Bezoekhistoriek</h3></div>
+                <div class="card-header-custom"><h3>Visit history</h3></div>
                 @if (!Model.Visits.Any())
                 {
-                    <div class="empty-notes">Nog geen bezoeken geregistreerd.</div>
+                    <div class="empty-notes">No visits registered yet.</div>
                 }
                 else
                 {
@@ -177,23 +177,23 @@ else
                                         <span class="timeline-date">@visit.VisitDate.ToString("dd/MM/yyyy")</span>
                                         @if (visit.ResolvedItemCount > 0)
                                         {
-                                            <span class="status-badge status-active">@visit.ResolvedItemCount opgelost</span>
+                                            <span class="status-badge status-active">@visit.ResolvedItemCount resolved</span>
                                         }
                                         @if (visit.NewItemCount > 0)
                                         {
-                                            <span class="status-badge status-maintenance">@visit.NewItemCount nieuw</span>
+                                            <span class="status-badge status-maintenance">@visit.NewItemCount new</span>
                                         }
                                     </div>
                                     @if (!string.IsNullOrWhiteSpace(visit.Summary))
                                     {
                                         <div class="timeline-note">@visit.Summary</div>
                                     }
-                                    <a asp-action="Details" asp-route-id="@visit.Id" class="small">Details bekijken →</a>
+                                    <a asp-action="Details" asp-route-id="@visit.Id" class="small">View details →</a>
                                 </div>
                             </div>
                         }
                     </div>
-                                <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
+                                <partial name="_Pagination" model="Model.Pagination" />
                 }
             </div>
         </div>
@@ -206,12 +206,12 @@ else
                     {
                         <a asp-action="Create" asp-route-departmentId="@Model.SelectedDepartmentId"
                            class="btn btn-primary custom-btn">
-                            <i class="bi bi-plus-lg"></i> Nieuw bezoek
+                            <i class="bi bi-plus-lg"></i> New visit
                         </a>
                     }
                     <a asp-controller="Departments" asp-action="Details" asp-route-id="@Model.SelectedDepartmentId"
                        class="btn btn-light custom-btn">
-                        <i class="bi bi-building"></i> Naar departement
+                        <i class="bi bi-building"></i> To department
                     </a>
                 </div>
             </div>

@@ -129,6 +129,73 @@ public class UserAccessService : IUserAccessService
         return ids.Count;
     }
 
+    public async Task<Dictionary<string, int>> GetAccessibleDepartmentCountsAsync(IReadOnlyCollection<string> userIds)
+    {
+        if (userIds.Count == 0) return new Dictionary<string, int>();
+
+        // Zelfde opbouw als ResolveAccessibleDepartmentIdsAsync (groep-
+        // lidmaatschappen -> groep-grants, plus individuele grants), maar in
+        // enkele query's voor de hele batch i.p.v. per gebruiker.
+        var userGroupIds = await _context.UserAccessGroups
+            .Where(m => userIds.Contains(m.UserId))
+            .Select(m => new { m.UserId, m.AccessGroupId })
+            .ToListAsync();
+
+        var groupIds = userGroupIds.Select(x => x.AccessGroupId).Distinct().ToList();
+
+        var groupGrants = groupIds.Count > 0
+            ? await _context.AccessGroupGrants
+                .Where(g => groupIds.Contains(g.AccessGroupId))
+                .Select(g => new { g.AccessGroupId, g.DepartmentId, g.LocationId })
+                .ToListAsync()
+            : new();
+
+        var individualGrants = await _context.UserAccessGrants
+            .Where(g => userIds.Contains(g.UserId))
+            .Select(g => new { g.UserId, g.DepartmentId, g.LocationId })
+            .ToListAsync();
+
+        var allLocationIds = groupGrants.Where(g => g.LocationId.HasValue).Select(g => g.LocationId!.Value)
+            .Concat(individualGrants.Where(g => g.LocationId.HasValue).Select(g => g.LocationId!.Value))
+            .Distinct()
+            .ToList();
+
+        var deptIdsByLocation = allLocationIds.Count > 0
+            ? (await _context.Departments
+                .Where(d => allLocationIds.Contains(d.LocationId))
+                .Select(d => new { d.Id, d.LocationId })
+                .ToListAsync())
+                .GroupBy(d => d.LocationId)
+                .ToDictionary(g => g.Key, g => g.Select(d => d.Id).ToList())
+            : new Dictionary<int, List<int>>();
+
+        var result = new Dictionary<string, int>();
+
+        foreach (var userId in userIds)
+        {
+            var deptIds = new HashSet<int>();
+
+            var groupsForUser = userGroupIds.Where(x => x.UserId == userId).Select(x => x.AccessGroupId).ToList();
+            foreach (var grant in groupGrants.Where(g => groupsForUser.Contains(g.AccessGroupId)))
+            {
+                if (grant.DepartmentId.HasValue) deptIds.Add(grant.DepartmentId.Value);
+                if (grant.LocationId.HasValue && deptIdsByLocation.TryGetValue(grant.LocationId.Value, out var ids))
+                    foreach (var id in ids) deptIds.Add(id);
+            }
+
+            foreach (var grant in individualGrants.Where(g => g.UserId == userId))
+            {
+                if (grant.DepartmentId.HasValue) deptIds.Add(grant.DepartmentId.Value);
+                if (grant.LocationId.HasValue && deptIdsByLocation.TryGetValue(grant.LocationId.Value, out var ids))
+                    foreach (var id in ids) deptIds.Add(id);
+            }
+
+            result[userId] = deptIds.Count;
+        }
+
+        return result;
+    }
+
     // ── Groepenbeheer ─────────────────────────────────────────────────────────
 
     public async Task<List<AccessGroupSummaryDto>> GetAllAccessGroupsAsync()
@@ -165,7 +232,7 @@ public class UserAccessService : IUserAccessService
             members.Add(new AccessGroupMemberDto
             {
                 UserId      = m.UserId,
-                DisplayName = u != null ? $"{u.FirstName} {u.LastName}".Trim() : "(onbekende gebruiker)"
+                DisplayName = u != null ? $"{u.FirstName} {u.LastName}".Trim() : "(unknown user)"
             });
         }
 
@@ -187,11 +254,11 @@ public class UserAccessService : IUserAccessService
     public async Task<int> CreateAccessGroupAsync(CreateAccessGroupDto dto)
     {
         var name = dto.Name.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Groepsnaam is verplicht.");
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Group name is required.");
 
-        if (await _context.AccessGroups.AnyAsync(g => g.Name == name))
-            throw new InvalidOperationException($"Er bestaat al een groep met de naam '{name}'.");
+            if (await _context.AccessGroups.AnyAsync(g => g.Name == name))
+                throw new InvalidOperationException($"A group with the name '{name}' already exists.");
 
         var group = new AccessGroup
         {
@@ -209,14 +276,14 @@ public class UserAccessService : IUserAccessService
     public async Task UpdateAccessGroupAsync(UpdateAccessGroupDto dto)
     {
         var group = await _context.AccessGroups.FindAsync(dto.Id);
-        if (group == null) return;
+            if (group == null) return;
 
         var name = dto.Name.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Groepsnaam is verplicht.");
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Group name is required.");
 
-        if (await _context.AccessGroups.AnyAsync(g => g.Name == name && g.Id != dto.Id))
-            throw new InvalidOperationException($"Er bestaat al een groep met de naam '{name}'.");
+            if (await _context.AccessGroups.AnyAsync(g => g.Name == name && g.Id != dto.Id))
+                throw new InvalidOperationException($"A group with the name '{name}' already exists.");
 
         group.Name           = name;
         group.Description    = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();

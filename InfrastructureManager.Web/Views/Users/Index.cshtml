@@ -12,7 +12,7 @@
     </div>
     <div class="d-flex gap-2">
         <a asp-controller="AccessGroups" asp-action="Index" class="btn btn-light custom-btn">
-            <i class="bi bi-people-fill"></i> Toegangsgroepen
+            <i class="bi bi-people-fill"></i> Access Groups
         </a>
         <a asp-action="Create" class="btn btn-primary custom-btn">
             <i class="bi bi-person-plus"></i> Add User
@@ -37,7 +37,7 @@
                     <th>Name</th>
                     <th>Email</th>
                     <th>Role</th>
-                    <th>Toegang</th>
+                    <th>Access</th>
                     <th>Status</th>
                     <th>Added</th>
                     <th></th>
@@ -67,12 +67,12 @@
                         <td>
                             @if (user.IsUnrestricted)
                             {
-                                <span class="text-secondary small">Alle departementen</span>
+                                <span class="text-secondary small">All departments</span>
                             }
                             else
                             {
                                 <span class="text-secondary small">
-                                    @user.AccessibleDepartmentCount departement@(user.AccessibleDepartmentCount == 1 ? "" : "en")
+                                    @user.AccessibleDepartmentCount department@(user.AccessibleDepartmentCount == 1 ? "" : "s")
                                 </span>
                             }
                         </td>

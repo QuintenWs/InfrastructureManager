@@ -43,9 +43,9 @@
         <i class="bi bi-exclamation-triangle-fill"></i>
         <span>
             <strong>@Model.OpenActionItemCount</strong>
-            open actiepunt@(Model.OpenActionItemCount == 1 ? "" : "en") voor dit departement
+            open action item@(Model.OpenActionItemCount == 1 ? "" : "s") for this department
         </span>
-        <span class="ms-auto small">Bekijk bezoeken →</span>
+        <span class="ms-auto small">View visits →</span>
     </a>
 }
 
@@ -77,11 +77,11 @@
 </div>
 
 <div class="content-card mt-4">
-    <div class="details-section-title"><i class="bi bi-diagram-2 me-1"></i> Bekabelingsplan</div>
+    <div class="details-section-title"><i class="bi bi-diagram-2 me-1"></i> Cabling Plan</div>
 
     @if (!Model.CablingPlans.Any())
     {
-        <div class="empty-notes mb-3">Nog geen bekabelingsplan geüpload.</div>
+        <div class="empty-notes mb-3">No cabling plan uploaded yet.</div>
     }
     else
     {
@@ -104,7 +104,7 @@
                         <span class="text-secondary small">@doc.CreatedAt.ToString("dd/MM/yyyy")</span>
                         @if (Model.CanEdit)
                         {
-                            <form asp-action="DeleteDocument" method="post" onsubmit="return confirm('Bekabelingsplan @doc.FileName verwijderen?');">
+                            <form asp-action="DeleteDocument" method="post" onsubmit="return confirm('Delete cabling plan @doc.FileName?');">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="documentId" value="@doc.Id" />
                                 <input type="hidden" name="departmentId" value="@Model.Id" />
@@ -124,10 +124,10 @@
             <input type="hidden" name="departmentId" value="@Model.Id" />
             <div class="row g-2 align-items-end">
                 <div class="col-md-6"><input type="file" name="files" accept=".vsdx,.vsd,.pdf" multiple class="form-control" /></div>
-                <div class="col-md-4"><input type="text" name="caption" class="form-control" placeholder="Omschrijving (optioneel)" maxlength="200" /></div>
+                <div class="col-md-4"><input type="text" name="caption" class="form-control" placeholder="Description (optional)" maxlength="200" /></div>
                 <div class="col-md-2"><button type="submit" class="btn btn-primary custom-btn w-100"><i class="bi bi-upload"></i> Upload</button></div>
             </div>
-            <div class="text-secondary small mt-1">Enkel Visio (.vsdx/.vsd) of PDF — max. 25 MB per bestand.</div>
+            <div class="text-secondary small mt-1">Only Visio (.vsdx/.vsd) or PDF — max. 25 MB per file.</div>
         </form>
     }
 </div>
@@ -370,7 +370,7 @@
                 </a>
                 <a asp-controller="Visits" asp-action="Index" asp-route-departmentId="@Model.Id"
                    class="btn btn-light custom-btn">
-                    <i class="bi bi-clipboard-check"></i> Bezoeken
+                    <i class="bi bi-clipboard-check"></i> Visits
                     @if (Model.OpenActionItemCount > 0)
                     {
                         <span class="filter-badge">@Model.OpenActionItemCount</span>
@@ -380,12 +380,12 @@
                 {
                     <a asp-controller="InventoryChecks" asp-action="Create" asp-route-departmentId="@Model.Id"
                        class="btn btn-light custom-btn">
-                        <i class="bi bi-clipboard-data"></i> Controle uitvoeren
+                        <i class="bi bi-clipboard-data"></i> Perform Check
                     </a>
                 }
                 <a asp-action="ChecklistPrint" asp-route-id="@Model.Id"
                    target="_blank" class="btn btn-light custom-btn">
-                    <i class="bi bi-printer"></i> Controlelijst afdrukken
+                    <i class="bi bi-printer"></i> Print Checklist
                 </a>
                 <a asp-controller="Topology" asp-action="Index"
                    asp-route-departmentId="@Model.Id" class="btn btn-light custom-btn">
@@ -404,7 +404,7 @@
                     <a asp-controller="History" asp-action="Index"
                        asp-route-EntityType="Department" asp-route-EntityId="@Model.Id"
                        class="btn btn-light custom-btn">
-                        <i class="bi bi-clock-history"></i> Geschiedenis van dit departement
+                        <i class="bi bi-clock-history"></i> History for this department
                     </a>
                 }
                 <a asp-action="Index" class="btn btn-light custom-btn">Back</a>
@@ -412,11 +412,11 @@
             <div class="text-secondary small mt-3">
                 @if (Model.LastCheckDate.HasValue)
                 {
-                    <span>Laatste controle: @Model.LastCheckDate.Value.ToString("dd/MM/yyyy")</span>
+                    <span>Last check: @Model.LastCheckDate.Value.ToString("dd/MM/yyyy")</span>
                 }
                 else
                 {
-                    <span>Nog nooit digitaal gecontroleerd</span>
+                    <span>Never digitally checked yet</span>
                 }
             </div>
         </div>

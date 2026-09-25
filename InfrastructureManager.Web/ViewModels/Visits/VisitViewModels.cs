@@ -16,6 +16,9 @@ public class VisitIndexViewModel
 
     // Populated when no department is selected — overview across all departments
     public List<ActionItemDto> GlobalOpenItems { get; set; } = new();
+
+    public InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel Pagination { get; set; } = new();
+
 }
 
 public class CreateVisitViewModel
@@ -24,7 +27,7 @@ public class CreateVisitViewModel
     public string DepartmentName { get; set; } = string.Empty;
     public string LocationName   { get; set; } = string.Empty;
 
-    [Display(Name = "Algemene opmerkingen")]
+    [Display(Name = "General notes")]
     public string? Summary { get; set; }
 
     public List<OpenItemRowViewModel> OpenItems { get; set; } = new();
@@ -39,18 +42,18 @@ public class OpenItemRowViewModel
     public DateTime CreatedAt            { get; set; }
     public string   CreatedByDisplayName { get; set; } = string.Empty;
 
-    [Display(Name = "Opgelost")]
+    [Display(Name = "Resolved")]
     public bool Resolve { get; set; }
 
-    [Display(Name = "Opmerking bij oplossing")]
+    [Display(Name = "Resolution notes")]
     public string? ResolutionNotes { get; set; }
 }
 
 public class NewItemRowViewModel
 {
-    [Display(Name = "Omschrijving")]
+    [Display(Name = "Description")]
     public string? Description { get; set; }
 
-    [Display(Name = "Prioriteit")]
+    [Display(Name = "Priority")]
     public string Priority { get; set; } = "Normal";
 }

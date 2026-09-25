@@ -1,4 +1,4 @@
-@model IEnumerable<InfrastructureManager.Web.ViewModels.DeviceTypes.DeviceTypeListViewModel>
+@model InfrastructureManager.Web.ViewModels.DeviceTypes.DeviceTypeIndexViewModel
 
 @{
     ViewData["Title"] = "Device Types";
@@ -17,7 +17,7 @@
 </div>
 
 <div class="content-card">
-    @if (!Model.Any())
+    @if (!Model.Items.Any())
     {
         <div class="empty-state">
             <div class="empty-icon"><i class="bi bi-cpu"></i></div>
@@ -37,7 +37,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in Model)
+                @foreach (var item in Model.Items)
                 {
                     <tr>
                         <td>
@@ -53,27 +53,57 @@
                                 @item.FieldCount field@(item.FieldCount == 1 ? "" : "s")
                             </span>
                         </td>
-                        <td>@item.DeviceCount</td>
+                        <td>
+                            @if (item.DeviceCount > 0)
+                            {
+                                <a asp-controller="Devices" asp-action="Index" asp-route-deviceType="@item.DeviceTypeValue"
+                                class="table-link">@item.DeviceCount</a>
+                            }
+                            else
+                            {
+                                @item.DeviceCount
+                            }
+                        </td>
                         <td class="text-end">
                             <div class="table-actions">
                                 <a asp-action="Details" asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-light">Manage Fields</a>
+                                class="btn btn-sm btn-light">Manage Fields</a>
                                 <a asp-action="Edit" asp-route-id="@item.Id"
-                                   class="btn btn-sm btn-primary">Edit</a>
-                                <form asp-action="Delete" asp-route-id="@item.Id"
-                                      method="post"
-                                      onsubmit="return confirm('Delete @item.Name and all its field definitions? Device field values will also be removed.');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-danger">
+                                class="btn btn-sm btn-primary">Edit</a>
+
+                                @* Altijd gerenderd, ook als niet van toepassing (visibility:hidden i.p.v.
+                                weggelaten) — zo houdt elke knop dezelfde plaats in de rij aan, wat
+                                deze en de prullenbak in élke rij op exact dezelfde positie zet. *@
+                                <a asp-controller="Devices" asp-action="Index" asp-route-deviceType="@item.DeviceTypeValue"
+                                class="btn btn-sm btn-light" title="This type is still in use — view its devices to reassign or remove them first"
+                                style="@(item.DeviceCount > 0 ? "" : "visibility:hidden")"
+                                tabindex="@(item.DeviceCount > 0 ? "0" : "-1")"
+                                aria-hidden="@(item.DeviceCount > 0 ? "false" : "true")">
+                                    <i class="bi bi-eye"></i> View Devices
+                                </a>
+
+                                @if (item.DeviceCount == 0)
+                                {
+                                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" style="display:inline-block"
+                                        onsubmit="return confirm('Delete @item.Name and all its field definitions? This cannot be undone.');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-danger" style="visibility:hidden" tabindex="-1" aria-hidden="true">
                                         <i class="bi bi-trash"></i>
                                     </button>
-                                </form>
+                                }
                             </div>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
-                <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
+            <partial name="_Pagination" model="Model.Pagination" />
     }
 </div>

@@ -1,33 +1,44 @@
 @model InfrastructureManager.Application.DTOs.Visits.SiteVisitDto
+@using InfrastructureManager.Infrastructure.Identity
 
 @{
-    ViewData["Title"] = "Bezoek details";
+    ViewData["Title"] = "Visit Details";
 }
 
 <div class="page-header">
     <div>
         <div class="breadcrumb-nav">
-            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Bezoeken</a>
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Visits</a>
             <span>/</span><span>@Model.VisitDate.ToString("dd/MM/yyyy")</span>
         </div>
         <h1 class="page-heading">@Model.DepartmentName — @Model.VisitDate.ToString("dd/MM/yyyy")</h1>
-        <div class="text-secondary small">@Model.LocationName &nbsp;·&nbsp; door @Model.UserDisplayName</div>
+        <div class="text-secondary small">@Model.LocationName &nbsp;·&nbsp; by @Model.UserDisplayName</div>
     </div>
+    @if (User.IsInRole(AppRoles.Admin))
+    {
+        <form asp-action="Delete" asp-route-id="@Model.Id" asp-route-departmentId="@Model.DepartmentId" method="post"
+              onsubmit="return confirm('Delete this visit? This cannot be undone. Action items linked to it will remain, but lose their link to this visit.');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-danger custom-btn">
+                <i class="bi bi-trash"></i> Delete Visit
+            </button>
+        </form>
+    }
 </div>
 
 @if (!string.IsNullOrWhiteSpace(Model.Summary))
 {
     <div class="content-card mb-4">
-        <div class="details-section-title">Algemene opmerkingen</div>
+        <div class="details-section-title">General notes</div>
         <div class="notes-content">@Model.Summary</div>
     </div>
 }
 
 <div class="content-card mb-4">
-    <div class="details-section-title">Opgeloste punten tijdens dit bezoek (@Model.ResolvedItems.Count)</div>
+    <div class="details-section-title">Items resolved during this visit (@Model.ResolvedItems.Count)</div>
     @if (!Model.ResolvedItems.Any())
     {
-        <div class="empty-notes">Geen punten opgelost tijdens dit bezoek.</div>
+        <div class="empty-notes">No items resolved during this visit.</div>
     }
     else
     {
@@ -47,10 +58,10 @@
 </div>
 
 <div class="content-card">
-    <div class="details-section-title">Nieuwe punten genoteerd (@Model.NewItems.Count)</div>
+    <div class="details-section-title">New items noted (@Model.NewItems.Count)</div>
     @if (!Model.NewItems.Any())
     {
-        <div class="empty-notes">Geen nieuwe punten genoteerd tijdens dit bezoek.</div>
+        <div class="empty-notes">No new items noted during this visit.</div>
     }
     else
     {

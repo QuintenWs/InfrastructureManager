@@ -36,14 +36,13 @@ public class SearchController : Controller
 
         // ── Devices ───────────────────────────────────────────────────────────
         var deviceQuery = _context.Devices
-            .Include(d => d.Department)
-            .Include(d => d.Location)
+            .Include(d => d.Department).ThenInclude(dept => dept.Location)
             .Include(d => d.Network)
             .Include(d => d.FieldValues).ThenInclude(v => v.Field)
             .Where(d =>
                 d.Name.Contains(q) ||
                 d.Department.Name.Contains(q) ||
-                d.Location.Name.Contains(q) ||
+                d.Department.Location.Name.Contains(q) ||
                 d.FieldValues.Any(v => v.Value.Contains(q)))
             .AsQueryable();
 
@@ -67,7 +66,7 @@ public class SearchController : Controller
                 Icon       = "bi-pc-display",
                 Id         = d.Id,
                 Title      = d.Name,
-                Subtitle   = $"{d.Department.Name} — {d.Location.Name}",
+                Subtitle = $"{d.Department.Name} — {d.Department.Location.Name}",
                 Detail     = detail,
                 Controller = "Devices",
                 Action     = "Details"
@@ -291,8 +290,4 @@ public class SearchController : Controller
 
         return View(new GlobalSearchViewModel { Query = q, Results = ordered });
     }
-
-    [HttpGet]
-    public IActionResult Ip(string? q) =>
-        RedirectToAction(nameof(Index), new { q });
 }

@@ -28,26 +28,30 @@ public class LocationsController : Controller
         var allowed = await _userAccessService.GetAccessibleLocationIdsAsync(User);
         var paged   = await _service.GetPagedAsync(search, page, PageSize, allowed);
 
-        ViewBag.Search = search;
-        ViewBag.Pagination = new PaginationViewModel
+        var vm = new LocationIndexViewModel
         {
-            CurrentPage = paged.Page,
-            TotalPages  = paged.TotalPages,
-            TotalCount  = paged.TotalCount,
-            RouteValues = new Dictionary<string, string> { ["search"] = search ?? "" }
+            Items = paged.Items.Select(x => new LocationListViewModel
+            {
+                Id              = x.Id,
+                Name            = x.Name,
+                City            = x.City,
+                Country         = x.Country,
+                DepartmentCount = x.DepartmentCount,
+                NetworkCount    = x.NetworkCount,
+                DeviceCount     = x.DeviceCount,
+                CreatedAt       = x.CreatedAt
+            }),
+            Search = search,
+            Pagination = new PaginationViewModel
+            {
+                CurrentPage = paged.Page,
+                TotalPages  = paged.TotalPages,
+                TotalCount  = paged.TotalCount,
+                RouteValues = new Dictionary<string, string> { ["search"] = search ?? "" }
+            }
         };
 
-        return View(paged.Items.Select(x => new LocationListViewModel
-        {
-            Id              = x.Id,
-            Name            = x.Name,
-            City            = x.City,
-            Country         = x.Country,
-            DepartmentCount = x.DepartmentCount,
-            NetworkCount    = x.NetworkCount,
-            DeviceCount     = x.DeviceCount,
-            CreatedAt       = x.CreatedAt
-        }));
+        return View(vm);
     }
 
     [HttpGet]

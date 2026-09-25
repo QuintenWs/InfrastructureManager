@@ -19,7 +19,7 @@
     <partial name="_ValidationSummary" />
 
     <div class="content-card mb-4">
-        <div class="details-section-title">Accountgegevens</div>
+        <div class="details-section-title">Account Details</div>
         <div class="form-grid">
 
             <div class="form-group">
@@ -43,7 +43,7 @@
             <div class="form-group">
                 <label asp-for="NewPassword"></label>
                 <input asp-for="NewPassword" class="form-control custom-input" type="password"
-                       placeholder="Leeg laten om huidig wachtwoord te behouden" />
+                       placeholder="Leave empty to keep current password" />
                 <span asp-validation-for="NewPassword" class="text-danger small"></span>
             </div>
 
@@ -51,19 +51,19 @@
     </div>
 
     <div class="content-card mb-4">
-        <div class="details-section-title">Rechten</div>
+        <div class="details-section-title">Permissions</div>
 
         <div class="row g-4">
             <div class="col-md-7">
                 <label asp-for="Role" class="form-label fw-semibold"></label>
                 <select asp-for="Role" class="form-select" id="roleSelect">
-                    <option value="Viewer">Viewer — enkel lezen, binnen zijn scope</option>
-                    <option value="Editor">Editor — mag wijzigen, binnen zijn scope</option>
-                    <option value="Admin">Admin — onbeperkt, kan alles beheren</option>
+                    <option value="Viewer">Viewer — read-only, within their scope</option>
+                    <option value="Editor">Editor — may make changes, within their scope</option>
+                    <option value="Admin">Admin — unrestricted, can manage everything</option>
                 </select>
                 <div class="text-secondary small mt-2">
-                    Viewer en Editor zien enkel de departementen uit hun groepen en
-                    individuele uitzonderingen hieronder. Admin ziet en beheert alles.
+                    Viewer and Editor only see the departments from their groups and
+                    individual exceptions below. Admin sees and manages everything.
                 </div>
             </div>
 
@@ -84,18 +84,18 @@
     </div>
 
     <div class="content-card mb-4" id="groupsSection">
-        <div class="details-section-title">Toegangsgroepen</div>
+        <div class="details-section-title">Access Groups</div>
         <div class="text-secondary small mb-3">
-            Lidmaatschap bepaalt welke departementen/locaties deze gebruiker ziet.
-            Een gebruiker kan in meerdere groepen tegelijk zitten.
+            Membership determines which departments/locations this user sees.
+            A user can be in multiple groups at once.
         </div>
 
         @if (!Model.AvailableGroups.Any())
         {
             <div class="empty-notes">
-                Nog geen groepen aangemaakt. Ga naar
-                <a asp-controller="AccessGroups" asp-action="Index">Toegangsgroepen</a>
-                om er een aan te maken.
+                No groups created yet. Go to
+                <a asp-controller="AccessGroups" asp-action="Index">Access Groups</a>
+                to create one.
             </div>
         }
         else
@@ -128,15 +128,15 @@
 </form>
 
 <div class="content-card" id="individualSection">
-    <div class="details-section-title">Individuele uitzonderingen</div>
+    <div class="details-section-title">Individual Exceptions</div>
     <div class="text-secondary small mb-3">
-        Los van groepen — bv. deze ene persoon extra toegang geven tot één
-        departement, of tot een volledige locatie.
+        Independent of groups — e.g. give this one person extra access to a
+        single department, or to an entire location.
     </div>
 
     @if (!Model.IndividualGrants.Any())
     {
-        <div class="empty-notes mb-4">Geen individuele uitzonderingen.</div>
+        <div class="empty-notes mb-4">No individual exceptions.</div>
     }
     else
     {
@@ -145,7 +145,7 @@
             {
                 var label = grant.DepartmentId.HasValue
                     ? $"{grant.DepartmentName} ({grant.DepartmentLocationName})"
-                    : $"{grant.LocationName} (volledige locatie)";
+                    : $"{grant.LocationName} (entire location)";
 
                 <div class="d-flex justify-content-between align-items-center p-3"
                      style="border:1px solid var(--color-border);border-radius:var(--radius-md)">
@@ -153,11 +153,11 @@
                         @label
                         @if (!grant.DepartmentId.HasValue)
                         {
-                            <span class="status-badge status-maintenance ms-2" style="font-size:.7rem">locatie</span>
+                            <span class="status-badge status-maintenance ms-2" style="font-size:.7rem">location</span>
                         }
                     </span>
                     <form asp-action="RemoveGrant" method="post"
-                          onsubmit="return confirm('Deze uitzondering verwijderen?');">
+                          onsubmit="return confirm('Remove this exception?');">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@Model.Id" />
                         <input type="hidden" name="grantId" value="@grant.Id" />
@@ -173,7 +173,7 @@
     <div class="row g-4">
         <div class="col-md-6">
             <label class="form-label small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">
-                Departement toevoegen
+                Add department
             </label>
             <form asp-action="AddDepartmentGrant" method="post" class="d-flex gap-2">
                 @Html.AntiForgeryToken()
@@ -191,7 +191,7 @@
         </div>
         <div class="col-md-6">
             <label class="form-label small fw-semibold text-secondary text-uppercase" style="letter-spacing:.03em">
-                Volledige locatie toevoegen
+                Add entire location
             </label>
             <form asp-action="AddLocationGrant" method="post" class="d-flex gap-2">
                 @Html.AntiForgeryToken()

@@ -113,6 +113,20 @@ public class InventoryChecksController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Delete(int id, int? departmentId)
+    {
+        var check = await _checkService.GetByIdAsync(id);
+        if (check == null) return NotFound();
+
+        await _checkService.DeleteAsync(id);
+        TempData["Success"] = "Check deleted.";
+        return departmentId.HasValue
+            ? RedirectToAction(nameof(Index), new { departmentId })
+            : RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
     [Authorize(Roles = AppRoles.AdminOrEditor)]
     [RequestSizeLimit(50_000_000)] // several photos per submission
     public async Task<IActionResult> Create(CreateInventoryCheckViewModel vm)
@@ -150,7 +164,7 @@ public class InventoryChecksController : Controller
 
         var id = await _checkService.CreateAsync(dto);
 
-        TempData["Success"] = "Controle opgeslagen.";
+        TempData["Success"] = "Check saved.";
         return RedirectToAction(nameof(Details), new { id });
     }
 

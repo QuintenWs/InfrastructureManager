@@ -1,3 +1,5 @@
+using InfrastructureManager.Domain.Enums;
+
 namespace InfrastructureManager.Application.DTOs.Devices;
 
 public class DeviceTypeFieldDto
@@ -18,8 +20,9 @@ public class DeviceTypeFieldDto
 
 public class DeviceTypeDefinitionDto
 {
-    public int    Id         { get; set; }
-    public string Name       { get; set; } = string.Empty;
+    public int        Id         { get; set; }
+    public DeviceType DeviceType { get; set; }   // NIEUW
+    public string     Name       { get; set; } = string.Empty;
     public IEnumerable<DeviceTypeFieldDto> Fields { get; set; }
         = new List<DeviceTypeFieldDto>();
 }

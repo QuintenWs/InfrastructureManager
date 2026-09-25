@@ -7,7 +7,9 @@
 
 <input type="hidden" id="networkApiUrl"
        value="@Url.Action("GetNetworksByDepartment", "Devices")" />
-<input type="hidden" id="currentNetworkId" value="" />
+<input type="hidden" id="suggestIpUrl"
+       value="@Url.Action("SuggestFreeIp", "Networks")" />
+<input type="hidden" id="currentNetworkId" value="@Model.NetworkId" />
 
 <div class="page-header">
     <div>
@@ -41,6 +43,12 @@
                     <select asp-for="NetworkId" class="form-select" id="NetworkId">
                         <option value="">No network</option>
                     </select>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <button type="button" id="btnSuggestIp" class="btn btn-sm btn-light" disabled>
+                            <i class="bi bi-magic"></i> Suggest IP
+                        </button>
+                        <span id="suggestIpResult" class="text-secondary small"></span>
+                    </div>
                     <div class="text-secondary small mt-1">
                         Networks load after selecting a department.
                     </div>
@@ -55,7 +63,7 @@
                 <div class="form-group">
                     <label asp-for="DeviceType"></label>
                     <select asp-for="DeviceType"
-                            asp-items="Html.GetEnumSelectList<DeviceType>()"
+                            asp-items="Model.DeviceTypes"
                             class="form-select custom-input"
                             id="deviceTypeSelect">
                     </select>
@@ -98,6 +106,7 @@
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/device-department.js"></script>
     <script src="~/js/device-fields.js"></script>
+    <script src="~/js/suggest-ip.js"></script>
     <script>
         DeviceFields.init({
             selectId:    'deviceTypeSelect',

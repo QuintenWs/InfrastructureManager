@@ -16,14 +16,17 @@
         <div class="page-subtitle">Infrastructure</div>
         <h1 class="page-heading">Devices</h1>
     </div>
-    @if (User.IsEditorOrAdmin())
-    {
-        <div>
+    <div class="d-flex gap-2">
+        <a href="@Url.Action("Export", "Devices")@Context.Request.QueryString" class="btn btn-light custom-btn">
+            <i class="bi bi-file-earmark-excel"></i> Export to Excel
+        </a>
+        @if (User.IsEditorOrAdmin())
+        {
             <a asp-action="Create" class="btn btn-primary custom-btn">
                 <i class="bi bi-plus-lg"></i> Add Device
             </a>
-        </div>
-    }
+        }
+    </div>
 </div>
 
 <div class="content-card mb-3">
@@ -62,15 +65,15 @@
                         <label class="filter-label">Device Type</label>
                         <select name="deviceType" class="form-select form-select-sm">
                             <option value="">All types</option>
-                            @foreach (var type in Enum.GetValues<DeviceType>())
+                            @foreach (var type in f.DeviceTypes)
                             {
-                                if (f.DeviceType == type)
+                                if (f.DeviceType.HasValue && type.Value == f.DeviceType.Value.ToString())
                                 {
-                                    <option value="@((int)type)" selected>@type</option>
+                                    <option value="@type.Value" selected>@type.Text</option>
                                 }
                                 else
                                 {
-                                    <option value="@((int)type)">@type</option>
+                                    <option value="@type.Value">@type.Text</option>
                                 }
                             }
                         </select>

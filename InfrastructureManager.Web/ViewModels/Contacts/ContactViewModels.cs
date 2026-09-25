@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
+using InfrastructureManager.Web.ViewModels.Shared; 
 
 namespace InfrastructureManager.Web.ViewModels.Contacts;
 
@@ -12,6 +13,15 @@ public class ContactListViewModel
     public string? Role { get; set; }
     public string DepartmentName { get; set; } = string.Empty;
     public string LocationName { get; set; } = string.Empty;
+}
+
+public class ContactIndexViewModel
+{
+    public IEnumerable<ContactListViewModel> Items { get; set; } = new List<ContactListViewModel>();
+    public string? Search { get; set; }
+    public int? DepartmentId { get; set; }
+    public IEnumerable<SelectListItem> Departments { get; set; } = new List<SelectListItem>();
+    public PaginationViewModel Pagination { get; set; } = new();
 }
 
 public class ContactDetailsViewModel

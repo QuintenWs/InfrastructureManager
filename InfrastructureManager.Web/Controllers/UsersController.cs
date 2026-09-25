@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using InfrastructureManager.Infrastructure.Data;
 
 namespace InfrastructureManager.Web.Controllers;
 
@@ -17,18 +18,21 @@ public class UsersController : Controller
     private readonly IUserAccessService           _userAccessService;
     private readonly IDepartmentService           _departmentService;
     private readonly ILocationService             _locationService;
+    private readonly AppDbContext                 _context;
     private const int PageSize = 20;
 
     public UsersController(
         UserManager<ApplicationUser> userManager,
         IUserAccessService           userAccessService,
         IDepartmentService           departmentService,
-        ILocationService             locationService)
+        ILocationService             locationService,
+        AppDbContext                 context)
     {
         _userManager       = userManager;
         _userAccessService = userAccessService;
         _departmentService = departmentService;
         _locationService   = locationService;
+        _context           = context;
     }
 
     [HttpGet]
@@ -45,14 +49,37 @@ public class UsersController : Controller
             .Take(PageSize)
             .ToListAsync();
 
-        var vm = new List<UserListViewModel>();
-        foreach (var u in users)
+        var userIds = users.Select(u => u.Id).ToList();
+
+        // Eén query voor de rollen van alle gebruikers op deze pagina, i.p.v.
+        // voorheen één GetRolesAsync-call per gebruiker.
+        var rolesByUserId = await (
+                from ur in _context.UserRoles
+                join r in _context.Roles on ur.RoleId equals r.Id
+                where userIds.Contains(ur.UserId)
+                select new { ur.UserId, r.Name }
+            )
+            .ToListAsync();
+
+        var rolesLookup = rolesByUserId
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Name).FirstOrDefault() ?? AppRoles.Viewer);
+
+        // Enkel voor niet-Admins opvragen — voor Admin is dit sowieso "alles",
+        // en dit spaart onnodig werk uit in de batch-methode hieronder.
+        var nonAdminUserIds = users
+            .Where(u => (rolesLookup.TryGetValue(u.Id, out var r) ? r : AppRoles.Viewer) != AppRoles.Admin)
+            .Select(u => u.Id)
+            .ToList();
+
+        var deptCounts = await _userAccessService.GetAccessibleDepartmentCountsAsync(nonAdminUserIds);
+
+        var vm = users.Select(u =>
         {
-            var roles = await _userManager.GetRolesAsync(u);
-            var role  = roles.FirstOrDefault() ?? AppRoles.Viewer;
+            var role           = rolesLookup.TryGetValue(u.Id, out var r) ? r : AppRoles.Viewer;
             var isUnrestricted = role == AppRoles.Admin;
 
-            vm.Add(new UserListViewModel
+            return new UserListViewModel
             {
                 Id             = u.Id,
                 FirstName      = u.FirstName,
@@ -62,12 +89,11 @@ public class UsersController : Controller
                 Role           = role,
                 CreatedAt      = u.CreatedAt,
                 IsUnrestricted = isUnrestricted,
-                // Enkel opvragen wanneer relevant — voor Admin is dit sowieso "alles".
                 AccessibleDepartmentCount = isUnrestricted
                     ? 0
-                    : await _userAccessService.GetAccessibleDepartmentCountAsync(u.Id)
-            });
-        }
+                    : (deptCounts.TryGetValue(u.Id, out var c) ? c : 0)
+            };
+        }).ToList();
 
         ViewBag.Pagination = new PaginationViewModel
         {
@@ -189,7 +215,7 @@ public class UsersController : Controller
         // buiten alle beheerschermen (incl. dit scherm) terechtkomt.
         if (user.Id == currentUserId && wasAdmin && newRole != AppRoles.Admin)
         {
-            ModelState.AddModelError(string.Empty, "Je kan je eigen Admin-rol niet verwijderen.");
+            ModelState.AddModelError(string.Empty, "You cannot remove your own Admin role.");
             return await ReturnWithErrorsAsync();
         }
 
@@ -268,6 +294,16 @@ public class UsersController : Controller
 
         user.IsActive = !user.IsActive;
         await _userManager.UpdateAsync(user);
+
+        if (!user.IsActive)
+        {
+            // Dwingt een herwaardering van een eventuele al ingelogde sessie af
+            // (zie SecurityStampValidatorOptions.ValidationInterval in Program.cs)
+            // — zonder dit blijft een bestaande auth-cookie gewoon geldig tot hij
+            // afloopt (standaard tot 8 uur), ook al is het account net
+            // gedeactiveerd.
+            await _userManager.UpdateSecurityStampAsync(user);
+        }
 
         TempData["Success"] = user.IsActive
             ? $"{user.FirstName} {user.LastName} activated."

@@ -1,40 +1,53 @@
 @model InfrastructureManager.Application.DTOs.InventoryChecks.InventoryCheckDetailDto
+@using InfrastructureManager.Infrastructure.Identity
 
 @{
-    ViewData["Title"] = "Controle details";
+    ViewData["Title"] = "Check Details";
 }
 
 <div class="page-header">
     <div>
         <div class="breadcrumb-nav">
-            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Controles</a>
+            <a asp-action="Index" asp-route-departmentId="@Model.DepartmentId">Checks</a>
             <span>/</span><span>@Model.CheckDate.ToString("dd/MM/yyyy")</span>
         </div>
         <h1 class="page-heading">@Model.DepartmentName — @Model.CheckDate.ToString("dd/MM/yyyy")</h1>
-        <div class="text-secondary small">@Model.LocationName &nbsp;·&nbsp; door @Model.UserDisplayName</div>
+        <div class="text-secondary small">@Model.LocationName &nbsp;·&nbsp; by @Model.UserDisplayName</div>
     </div>
-    <button onclick="window.print()" class="btn btn-light custom-btn no-print">
-        <i class="bi bi-printer"></i> Afdrukken / Exporteren
-    </button>
+    <div class="d-flex gap-2 no-print">
+        <button onclick="window.print()" class="btn btn-light custom-btn">
+            <i class="bi bi-printer"></i> Print / Export
+        </button>
+        @if (User.IsInRole(AppRoles.Admin))
+        {
+            <form asp-action="Delete" asp-route-id="@Model.Id" asp-route-departmentId="@Model.DepartmentId" method="post"
+                  onsubmit="return confirm('Delete this check? This cannot be undone.');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-danger custom-btn">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </form>
+        }
+    </div>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <div class="content-card text-center">
             <div style="font-size:1.8rem;font-weight:700">@Model.TotalCount</div>
-            <div class="text-secondary small">Gecontroleerd</div>
+            <div class="text-secondary small">Checked</div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="content-card text-center">
             <div style="font-size:1.8rem;font-weight:700;color:var(--color-success)">@Model.PresentCount</div>
-            <div class="text-secondary small">Aanwezig</div>
+            <div class="text-secondary small">Present</div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="content-card text-center">
             <div style="font-size:1.8rem;font-weight:700;color:var(--color-danger)">@Model.MissingCount</div>
-            <div class="text-secondary small">Ontbreekt</div>
+            <div class="text-secondary small">Missing</div>
         </div>
     </div>
 </div>
@@ -42,16 +55,16 @@
 @if (!string.IsNullOrWhiteSpace(Model.Notes))
 {
     <div class="content-card mb-4">
-        <div class="details-section-title">Algemene opmerkingen</div>
+        <div class="details-section-title">General notes</div>
         <div class="notes-content">@Model.Notes</div>
     </div>
 }
 
 <div class="content-card">
-    <div class="details-section-title">Toestellen</div>
+    <div class="details-section-title">Devices</div>
     <table class="table align-middle">
         <thead>
-            <tr><th>Toestel</th><th>Type</th><th>Status</th><th>Opmerking</th><th>Foto</th></tr>
+            <tr><th>Device</th><th>Type</th><th>Status</th><th>Remark</th><th>Photo</th></tr>
         </thead>
         <tbody>
             @foreach (var item in Model.Items)
@@ -62,11 +75,11 @@
                     <td>
                         @if (item.IsPresent)
                         {
-                            <span class="status-badge status-active">Aanwezig</span>
+                            <span class="status-badge status-active">Present</span>
                         }
                         else
                         {
-                            <span class="status-badge status-offline">Ontbreekt</span>
+                            <span class="status-badge status-offline">Missing</span>
                         }
                     </td>
                     <td class="text-secondary">@(item.Remark ?? "—")</td>

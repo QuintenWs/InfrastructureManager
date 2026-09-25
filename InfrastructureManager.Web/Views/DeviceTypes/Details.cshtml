@@ -14,8 +14,21 @@
         <h1 class="details-title">@Model.Name</h1>
         <div class="details-subtitle">
             @Model.Fields.Count() field@(Model.Fields.Count() == 1 ? "" : "s") &nbsp;·&nbsp;
-            @Model.DeviceCount device@(Model.DeviceCount == 1 ? "" : "s")
+            @if (Model.DeviceCount > 0)
+            {
+                <a asp-controller="Devices" asp-action="Index" asp-route-deviceType="@Model.DeviceTypeValue">
+                    @Model.DeviceCount device@(Model.DeviceCount == 1 ? "" : "s")
+                </a>
+            }
+            else
+            {
+                @:@Model.DeviceCount device@(Model.DeviceCount == 1 ? "" : "s")
+            }
         </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <div class="text-secondary mt-1" style="font-size:13px">@Model.Description</div>
+        }
     </div>
     <div class="d-flex gap-2">
         <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary custom-btn">
@@ -49,7 +62,7 @@
                             <th>Type</th>
                             <th>Options / Key</th>
                             <th>Required</th>
-                            <th>Waarschuwing</th>
+                            <th>Warning</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -89,8 +102,8 @@
                                 <td>
                                     @if (field.AlertOnExpiry)
                                     {
-                                        <span class="status-badge status-maintenance" title="Verschijnt in 'Vervalt binnenkort' op het dashboard">
-                                            <i class="bi bi-alarm"></i> Actief
+                                        <span class="status-badge status-maintenance" title="Appears in 'Expiring Soon' on the dashboard">
+                                            <i class="bi bi-alarm"></i> Active
                                         </span>
                                     }
                                     else
@@ -168,10 +181,10 @@
                                class="form-check-input" id="alertOnExpiryAdd" />
                         <input type="hidden" name="AlertOnExpiry" value="false" />
                         <label class="form-check-label" for="alertOnExpiryAdd">
-                            Waarschuw bij vervaldatum
+                            Warn on expiry date
                         </label>
                     </div>
-                    <div class="text-secondary small mt-1">Verschijnt dan op het dashboard</div>
+                    <div class="text-secondary small mt-1">Then appears on the dashboard</div>
                 </div>
 
                 <div class="col-md-2 d-flex align-items-end">
@@ -210,7 +223,7 @@
             <div class="text-secondary" style="font-size:.85rem">
                 <div class="mb-1"><strong>Text</strong> — free text input</div>
                 <div class="mb-1"><strong>Number</strong> — numeric only</div>
-                <div class="mb-1"><strong>Date</strong> — date picker, kan een vervalwaarschuwing krijgen</div>
+                <div class="mb-1"><strong>Date</strong> — date picker, can have an expiry warning</div>
                 <div><strong>Dropdown</strong> — choose from a predefined list</div>
             </div>
         </div>

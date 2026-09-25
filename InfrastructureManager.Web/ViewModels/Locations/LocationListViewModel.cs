@@ -1,3 +1,5 @@
+using InfrastructureManager.Web.ViewModels.Shared;
+
 namespace InfrastructureManager.Web.ViewModels.Locations;
 
 public class LocationListViewModel
@@ -10,4 +12,11 @@ public class LocationListViewModel
     public int NetworkCount { get; set; }
     public int DeviceCount { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public class LocationIndexViewModel
+{
+    public IEnumerable<LocationListViewModel> Items { get; set; } = new List<LocationListViewModel>();
+    public string? Search { get; set; }
+    public PaginationViewModel Pagination { get; set; } = new();
 }

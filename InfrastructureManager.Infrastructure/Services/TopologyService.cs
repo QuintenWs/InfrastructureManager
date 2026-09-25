@@ -3,6 +3,7 @@ using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using InfrastructureManager.Application.Common;
 
 namespace InfrastructureManager.Infrastructure.Services;
 
@@ -104,8 +105,6 @@ public class TopologyService : ITopologyService
     private static TopologyDeviceNode MapDevice(Domain.Entities.Device d) => new()
     {
         Id = d.Id, Name = d.Name, DeviceType = d.DeviceType.ToString(), Status = d.Status.ToString(),
-        IpAddress = d.FieldValues.FirstOrDefault(fv =>
-            fv.Field?.FieldType == "ipv4" || fv.Field?.FieldType == "ipv6" ||
-            fv.Field?.FieldKey == "ip_address")?.Value
+        IpAddress = d.GetIpAddress()
     };
 }

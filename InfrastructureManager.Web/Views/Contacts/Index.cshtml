@@ -1,4 +1,4 @@
-@model IEnumerable<InfrastructureManager.Web.ViewModels.Contacts.ContactListViewModel>
+@model InfrastructureManager.Web.ViewModels.Contacts.ContactIndexViewModel
 
 @{
     ViewData["Title"] = "Contacts";
@@ -9,15 +9,18 @@
         <div class="page-subtitle">Responsible persons</div>
         <h1 class="page-heading">Contacts</h1>
     </div>
-    @if (User.IsEditorOrAdmin())
-    {
-        <div>
+    <div class="d-flex gap-2">
+        <a href="@Url.Action("Export", "Contacts")@Context.Request.QueryString" class="btn btn-light custom-btn">
+            <i class="bi bi-file-earmark-excel"></i> Export to Excel
+        </a>
+        @if (User.IsEditorOrAdmin())
+        {
             <a asp-action="Create" class="btn btn-primary custom-btn">
                 <i class="bi bi-plus-lg"></i>
                 Add Contact
             </a>
-        </div>
-    }
+        }
+    </div>
 </div>
 
 <div class="content-card mb-4">
@@ -25,11 +28,11 @@
         <div class="col-md-5">
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" name="search" value="@ViewBag.Search" placeholder="Search contacts..." />
+                <input type="text" name="search" value="@Model.Search" placeholder="Search contacts..." />
             </div>
         </div>
         <div class="col-md-4">
-            <select name="departmentId" class="form-select" asp-items="ViewBag.Departments">
+            <select name="departmentId" class="form-select" asp-items="Model.Departments">
                 <option value="">All Departments</option>
             </select>
         </div>
@@ -44,7 +47,7 @@
 
 <div class="content-card">
 
-    @if (!Model.Any())
+    @if (!Model.Items.Any())
     {
         <div class="empty-state">
             <div class="empty-icon"><i class="bi bi-people"></i></div>
@@ -67,7 +70,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in Model)
+                @foreach (var item in Model.Items)
                 {
                     <tr>
                         <td>
@@ -102,7 +105,7 @@
                 }
             </tbody>
         </table>
-                <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
+        <partial name="_Pagination" model="Model.Pagination" />
     }
 
 </div>

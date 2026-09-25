@@ -6,6 +6,7 @@
     var f = Model.Filter;
     var hasFilter = !string.IsNullOrWhiteSpace(f.Search)
                  || f.DepartmentId.HasValue
+                 || f.LocationId.HasValue
                  || f.IsDhcpEnabled.HasValue
                  || f.IsInternetAccessible.HasValue
                  || f.VlanId.HasValue
@@ -17,14 +18,17 @@
         <div class="page-subtitle">Infrastructure</div>
         <h1 class="page-heading">Networks</h1>
     </div>
-    @if (User.IsEditorOrAdmin())
-    {
-        <div class="d-flex gap-2">
+    <div class="d-flex gap-2">
+        <a href="@Url.Action("Export", "Networks")@Context.Request.QueryString" class="btn btn-light custom-btn">
+            <i class="bi bi-file-earmark-excel"></i> Export to Excel
+        </a>
+        @if (User.IsEditorOrAdmin())
+        {
             <a asp-action="Create" class="btn btn-primary custom-btn">
                 <i class="bi bi-plus-lg"></i> Add Network
             </a>
-        </div>
-    }
+        }
+    </div>
 </div>
 
 <div class="content-card mb-3">
@@ -59,7 +63,7 @@
             <div class="filter-panel mt-3">
                 <div class="row g-3">
 
-                    <div class="col-md-4">
+                   <div class="col-md-3">
                         <label class="filter-label">Department</label>
                         <select name="departmentId" class="form-select form-select-sm">
                             <option value="">All departments</option>
@@ -72,6 +76,24 @@
                                 else
                                 {
                                     <option value="@d.Value">@d.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="filter-label">Location</label>
+                        <select name="locationId" class="form-select form-select-sm">
+                            <option value="">All locations</option>
+                            @foreach (var l in f.Locations)
+                            {
+                                if (l.Value == f.LocationId?.ToString())
+                                {
+                                    <option value="@l.Value" selected>@l.Text</option>
+                                }
+                                else
+                                {
+                                    <option value="@l.Value">@l.Text</option>
                                 }
                             }
                         </select>
@@ -216,6 +238,6 @@
                 }
             </tbody>
         </table>
-                <partial name="_Pagination" model="(InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel)ViewBag.Pagination" />
+                <partial name="_Pagination" model="Model.Pagination" />
     }
 </div>

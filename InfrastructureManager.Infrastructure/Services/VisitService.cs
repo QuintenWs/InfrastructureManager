@@ -99,37 +99,6 @@ public class VisitService : IVisitService
         };
     }
 
-    public async Task<IEnumerable<SiteVisitDto>> GetVisitsByDepartmentAsync(int departmentId)
-    {
-        var visits = await _context.SiteVisits
-            .Where(v => v.DepartmentId == departmentId)
-            .OrderByDescending(v => v.VisitDate)
-            .Select(v => new
-            {
-                v.Id,
-                v.DepartmentId,
-                v.UserDisplayName,
-                v.VisitDate,
-                v.Summary,
-                v.CreatedAt,
-                ResolvedCount = v.ResolvedItems.Count,
-                NewCount      = v.CreatedItems.Count
-            })
-            .ToListAsync();
-
-        return visits.Select(x => new SiteVisitDto
-        {
-            Id                = x.Id,
-            DepartmentId      = x.DepartmentId,
-            UserDisplayName   = x.UserDisplayName,
-            VisitDate         = x.VisitDate,
-            Summary           = x.Summary,
-            CreatedAt         = x.CreatedAt,
-            ResolvedItemCount = x.ResolvedCount,
-            NewItemCount      = x.NewCount
-        });
-    }
-
     public async Task<SiteVisitDto?> GetVisitByIdAsync(int id)
     {
         var visit = await _context.SiteVisits
@@ -163,27 +132,6 @@ public class VisitService : IVisitService
             .Where(a => a.DepartmentId == departmentId && a.Status != ActionItemStatus.Resolved)
             .Include(a => a.Department).ThenInclude(d => d.Location)
             .ToListAsync();
-
-        return items
-            .OrderByDescending(a => a.Priority)
-            .ThenBy(a => a.CreatedAt)
-            .Select(ToDto);
-    }
-
-    public async Task<IEnumerable<ActionItemDto>> GetAllOpenActionItemsAsync(int? locationId = null, IReadOnlyCollection<int>? allowedDepartmentIds = null)
-    {
-        var query = _context.ActionItems
-            .Where(a => a.Status != ActionItemStatus.Resolved)
-            .Include(a => a.Department).ThenInclude(d => d.Location)
-            .AsQueryable();
-
-        if (locationId.HasValue)
-            query = query.Where(a => a.Department.LocationId == locationId.Value);
-
-        if (allowedDepartmentIds != null)
-            query = query.Where(a => allowedDepartmentIds.Contains(a.DepartmentId));
-
-        var items = await query.ToListAsync();
 
         return items
             .OrderByDescending(a => a.Priority)
@@ -234,8 +182,8 @@ public class VisitService : IVisitService
         _context.SiteVisits.Add(visit);
         await _context.SaveChangesAsync(); // need visit.Id for the items below
 
-        var deptName = (await _context.Departments.FindAsync(dto.DepartmentId))?.Name ?? "onbekend departement";
-        await _audit.LogAsync("CREATE", "SiteVisit", visit.Id, $"Bezoek — {deptName} ({visit.VisitDate:dd/MM/yyyy})",
+        var deptName = (await _context.Departments.FindAsync(dto.DepartmentId))?.Name ?? "unknown department";
+        await _audit.LogAsync("CREATE", "SiteVisit", visit.Id, $"Visit — {deptName} ({visit.VisitDate:dd/MM/yyyy})",
             newValues: new { DepartmentId = dto.DepartmentId, dto.Summary },
             departmentId: dto.DepartmentId);
 
@@ -303,6 +251,30 @@ public class VisitService : IVisitService
         return visit.Id;
     }
 
+    public async Task DeleteVisitAsync(int id)
+    {
+        var visit = await _context.SiteVisits.FindAsync(id);
+        if (visit == null) return;
+
+        var snapshot = new { visit.DepartmentId, visit.VisitDate, visit.Summary, visit.UserDisplayName };
+
+        await _context.ActionItems
+            .Where(a => a.CreatedDuringVisitId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.CreatedDuringVisitId, (int?)null));
+
+        await _context.ActionItems
+            .Where(a => a.ResolvedDuringVisitId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.ResolvedDuringVisitId, (int?)null));
+
+        _context.SiteVisits.Remove(visit);
+        await _context.SaveChangesAsync();
+
+        await _audit.LogAsync("DELETE", "SiteVisit", id,
+            $"Visit — {snapshot.VisitDate:dd/MM/yyyy}",
+            oldValues: new { snapshot.DepartmentId, snapshot.VisitDate, snapshot.Summary, snapshot.UserDisplayName },
+            departmentId: snapshot.DepartmentId);
+    }
+
     public async Task SetInProgressAsync(int actionItemId)
     {
         var item = await _context.ActionItems.FindAsync(actionItemId);
@@ -324,7 +296,7 @@ public class VisitService : IVisitService
     {
         var httpUser = _httpContextAccessor.HttpContext?.User;
         string? userId = null;
-        string display = "Systeem";
+        string display = "System";
 
         if (httpUser?.Identity?.IsAuthenticated == true)
         {
@@ -334,7 +306,7 @@ public class VisitService : IVisitService
                 userId  = appUser.Id;
                 display = $"{appUser.FirstName} {appUser.LastName}".Trim();
                 if (string.IsNullOrWhiteSpace(display))
-                    display = appUser.Email ?? "Onbekend";
+                    display = appUser.Email ?? "Unknown";
             }
         }
 

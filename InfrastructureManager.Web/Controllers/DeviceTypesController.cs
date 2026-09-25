@@ -32,27 +32,34 @@ public class DeviceTypesController : Controller
         var definitions = (await _service.GetAllDefinitionsAsync()).ToList();
         var totalCount  = definitions.Count;
 
-        var vm = definitions
-            .Skip((page - 1) * PageSize)
-            .Take(PageSize)
-            .Select(d => new DeviceTypeListViewModel
-            {
-                Id          = d.Id,
-                Name        = d.Name,
-                FieldCount  = d.Fields.Count(),
-                DeviceCount = _context.Devices.Count(dev =>
-                    dev.DeviceType == _context.DeviceTypeDefinitions
-                        .Where(x => x.Id == d.Id)
-                        .Select(x => x.DeviceType)
-                        .FirstOrDefault())
-            });
+        // Eén query voor de aantallen van alle types tegelijk, i.p.v. voorheen
+        // tot 2 losse database-round-trips per rij op de pagina (tot 40
+        // queries voor een pagina van 20 types).
+        var counts = await _context.Devices
+            .GroupBy(d => d.DeviceType)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
 
-        ViewBag.Pagination = new PaginationViewModel
+        var vm = new DeviceTypeIndexViewModel
         {
-            CurrentPage = page,
-            TotalPages  = PageSize <= 0 ? 0 : (int)Math.Ceiling(totalCount / (double)PageSize),
-            TotalCount  = totalCount,
-            RouteValues = new Dictionary<string, string>()
+            Items = definitions
+                .Skip((page - 1) * PageSize)
+                .Take(PageSize)
+                .Select(d => new DeviceTypeListViewModel
+                {
+                    Id              = d.Id,
+                    Name            = d.Name,
+                    FieldCount      = d.Fields.Count(),
+                    DeviceCount     = counts.TryGetValue(d.DeviceType, out var c) ? c : 0,
+                    DeviceTypeValue = (int)d.DeviceType
+                }),
+            Pagination = new PaginationViewModel
+            {
+                CurrentPage = page,
+                TotalPages  = PageSize <= 0 ? 0 : (int)Math.Ceiling(totalCount / (double)PageSize),
+                TotalCount  = totalCount,
+                RouteValues = new Dictionary<string, string>()
+            }
         };
 
         return View(vm);
@@ -73,10 +80,11 @@ public class DeviceTypesController : Controller
 
         var vm = new DeviceTypeDetailsViewModel
         {
-            Id          = definition.Id,
-            Name        = definition.Name,
-            DeviceCount = deviceCount,
-            Fields      = definition.Fields.Select(f => new DeviceTypeFieldViewModel
+            Id              = definition.Id,
+            Name            = definition.Name,
+            DeviceCount     = deviceCount,
+            DeviceTypeValue = (int)definition.DeviceType,
+            Fields          = definition.Fields.Select(f => new DeviceTypeFieldViewModel
             {
                 Id            = f.Id,
                 Label         = f.Label,
@@ -95,17 +103,25 @@ public class DeviceTypesController : Controller
 
     // ── Create type ───────────────────────────────────────────────────────────
 
-    [HttpGet]
-    public IActionResult Create() => View(new CreateDeviceTypeViewModel());
-
     [HttpPost]
     public async Task<IActionResult> Create(CreateDeviceTypeViewModel vm)
     {
         if (!ModelState.IsValid) return View(vm);
 
-        var id = await _service.CreateDefinitionAsync(vm.Name, vm.Description);
-        TempData["Success"] = $"Device type '{vm.Name}' created. Add fields below.";
-        return RedirectToAction(nameof(Details), new { id });
+        try
+        {
+            var id = await _service.CreateDefinitionAsync(vm.Name, vm.Description);
+            TempData["Success"] = $"Device type '{vm.Name}' created. Add fields below.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (DbUpdateException)
+        {
+            // Zeer lage kans: twee gelijktijdige aanmaak-verzoeken die dezelfde
+            // volgende DeviceType-waarde berekenen, gevangen door de unieke index
+            // op DeviceTypeDefinitions.DeviceType.
+            ModelState.AddModelError(string.Empty, "Could not create the device type due to a conflict — please try again.");
+            return View(vm);
+        }
     }
 
     // ── Edit type name ────────────────────────────────────────────────────────
@@ -138,8 +154,15 @@ public class DeviceTypesController : Controller
     [HttpPost]
     public async Task<IActionResult> Delete(int id)
     {
-        await _service.DeleteDefinitionAsync(id);
-        TempData["Success"] = "Device type deleted.";
+        try
+        {
+            await _service.DeleteDefinitionAsync(id);
+            TempData["Success"] = "Device type deleted.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
         return RedirectToAction(nameof(Index));
     }
 
@@ -154,16 +177,24 @@ public class DeviceTypesController : Controller
             return RedirectToAction(nameof(Details), new { id = vm.DefinitionId });
         }
 
-        await _service.AddFieldAsync(vm.DefinitionId, new()
+        try
         {
-            Label         = vm.Label,
-            FieldType     = vm.FieldType,
-            SelectOptions = vm.SelectOptions,
-            IsRequired    = vm.IsRequired,
-            AlertOnExpiry = vm.AlertOnExpiry
-        });
+            await _service.AddFieldAsync(vm.DefinitionId, new()
+            {
+                Label         = vm.Label,
+                FieldType     = vm.FieldType,
+                SelectOptions = vm.SelectOptions,
+                IsRequired    = vm.IsRequired,
+                AlertOnExpiry = vm.AlertOnExpiry
+            });
 
-        TempData["Success"] = $"Field '{vm.Label}' added.";
+            TempData["Success"] = $"Field '{vm.Label}' added.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
         return RedirectToAction(nameof(Details), new { id = vm.DefinitionId });
     }
 

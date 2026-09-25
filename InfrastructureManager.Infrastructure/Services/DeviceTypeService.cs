@@ -1,7 +1,9 @@
+using InfrastructureManager.Application.Common;
 using InfrastructureManager.Application.DTOs.Devices;
 using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Domain.Enums;
+using InfrastructureManager.Domain.Exceptions;
 using InfrastructureManager.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,6 +43,44 @@ public class DeviceTypeService : IDeviceTypeService
         return MapToDto(definition, existingValues);
     }
 
+    public async Task ValidateFieldValuesAsync(
+        int?                    networkId,
+        int?                    excludeDeviceId,
+        Dictionary<int, string> fieldValues)
+    {
+        var fieldIds = fieldValues.Keys.ToList();
+        var fields = await _context.DeviceTypeFields
+            .Where(f => fieldIds.Contains(f.Id))
+            .ToDictionaryAsync(f => f.Id, f => f);
+
+        // Enkel relevant bij een Edit (excludeDeviceId is dan het toestel zelf) —
+        // laat toe om waarden die niemand écht wijzigt over te slaan, zodat
+        // legacy-data van vóór deze validatie bestond een verder ongerelateerde
+        // bewerking niet blokkeert.
+        var existingValues = excludeDeviceId.HasValue
+            ? await _context.DeviceFieldValues
+                .Where(v => v.DeviceId == excludeDeviceId.Value)
+                .ToDictionaryAsync(v => v.DeviceTypeFieldId, v => v.Value)
+            : new Dictionary<int, string>();
+
+        foreach (var (fieldId, value) in fieldValues)
+        {
+            if (!fields.TryGetValue(fieldId, out var field)) continue;
+
+            var isUnchanged = existingValues.TryGetValue(fieldId, out var existingValue) && existingValue == value;
+            if (!isUnchanged)
+                ValidateFieldFormat(field, value);
+
+            if (networkId == null) continue;
+            if (string.IsNullOrWhiteSpace(value)) continue;
+            if (!DeviceFieldHelpers.IsIpAddressField(field)) continue;
+
+            var conflictingDeviceName = await FindConflictingDeviceNameAsync(networkId.Value, excludeDeviceId, value);
+            if (conflictingDeviceName != null)
+                throw new IpConflictException(value, conflictingDeviceName);
+        }
+    }
+
     public async Task SaveFieldValuesAsync(
         int deviceId,
         Dictionary<int, string> fieldValues)
@@ -51,14 +91,49 @@ public class DeviceTypeService : IDeviceTypeService
             .ToListAsync();
 
         // Needed to label brand-new values (no existing record/Field include yet)
-        var fieldIds    = fieldValues.Keys.ToList();
-        var fieldLabels = await _context.DeviceTypeFields
+        var fieldIds   = fieldValues.Keys.ToList();
+        var fieldsById = await _context.DeviceTypeFields
             .Where(f => fieldIds.Contains(f.Id))
-            .ToDictionaryAsync(f => f.Id, f => f.Label);
+            .ToDictionaryAsync(f => f.Id, f => f);
+        
+        // toevoegen, net vóór "var device = await _context.Devices.FindAsync(deviceId);"
+        // Format-validatie — veiligheidsnet voor rechtstreekse aanroepers (bv.
+        // DevToolsController). Slaat waarden over die ongewijzigd zijn t.o.v. wat al
+        // opgeslagen staat — zie de toelichting bij ValidateFieldValuesAsync hierboven.
+        foreach (var (fieldId, value) in fieldValues)
+        {
+            if (!fieldsById.TryGetValue(fieldId, out var field)) continue;
 
-        // Collected as we go, then logged once as a single "Device" audit
-        // entry — so a device's IP/MAC/custom-field edits show up in its
-        // own history with a proper old/new diff per field.
+            var currentRecord = existing.FirstOrDefault(v => v.DeviceTypeFieldId == fieldId);
+            var isUnchanged   = currentRecord != null && currentRecord.Value == value;
+            if (!isUnchanged)
+                ValidateFieldFormat(field, value);
+        }
+
+        var device = await _context.Devices.FindAsync(deviceId);
+
+        // ── IP conflict check ────────────────────────────────────────────────
+        // Safety net for direct callers of this method (e.g. from
+        // DevToolsController) — the normal UI flow (DevicesController) already
+        // calls ValidateFieldValuesAsync before the device itself is created/
+        // updated, precisely to avoid a conflict surfacing here after the
+        // device has already been committed.
+        if (device?.NetworkId != null)
+        {
+            foreach (var (fieldId, value) in fieldValues)
+            {
+                if (string.IsNullOrWhiteSpace(value)) continue;
+                if (!fieldsById.TryGetValue(fieldId, out var field) || !DeviceFieldHelpers.IsIpAddressField(field))
+                    continue;
+
+                var conflictingDeviceName = await FindConflictingDeviceNameAsync(device.NetworkId.Value, deviceId, value);
+                if (conflictingDeviceName != null)
+                    throw new IpConflictException(value, conflictingDeviceName);
+            }
+        }
+
+        var fieldLabels = fieldsById.ToDictionary(kv => kv.Key, kv => kv.Value.Label);
+
         var changedOld = new Dictionary<string, object>();
         var changedNew = new Dictionary<string, object>();
 
@@ -66,7 +141,7 @@ public class DeviceTypeService : IDeviceTypeService
         {
             var record = existing.FirstOrDefault(v => v.DeviceTypeFieldId == fieldId);
             var label  = record?.Field?.Label
-                         ?? (fieldLabels.TryGetValue(fieldId, out var l) ? l : $"Veld #{fieldId}");
+                         ?? (fieldLabels.TryGetValue(fieldId, out var l) ? l : $"Field #{fieldId}");
 
             if (record != null)
             {
@@ -100,7 +175,7 @@ public class DeviceTypeService : IDeviceTypeService
         foreach (var rem in toRemove)
         {
             if (string.IsNullOrWhiteSpace(rem.Value)) continue;
-            var label = rem.Field?.Label ?? "Veld";
+            var label = rem.Field?.Label ?? "Field";
             changedOld[label] = rem.Value;
             changedNew[label] = string.Empty;
         }
@@ -111,8 +186,7 @@ public class DeviceTypeService : IDeviceTypeService
 
         if (changedOld.Count > 0)
         {
-            var device = await _context.Devices.FindAsync(deviceId);
-            await _audit.LogAsync("UPDATE", "Device", deviceId, device?.Name ?? $"Toestel #{deviceId}",
+            await _audit.LogAsync("UPDATE", "Device", deviceId, device?.Name ?? $"Device #{deviceId}",
                 oldValues: changedOld, newValues: changedNew, departmentId: device?.DepartmentId);
         }
     }
@@ -186,6 +260,12 @@ public class DeviceTypeService : IDeviceTypeService
             ? GenerateKey(dto.Label)
             : dto.FieldKey.Trim().ToLower().Replace(" ", "_");
 
+        var keyExists = await _context.DeviceTypeFields
+            .AnyAsync(f => f.DeviceTypeDefinitionId == definitionId && f.FieldKey == key);
+        if (keyExists)
+            throw new InvalidOperationException(
+                $"A field with key '{key}' already exists on this device type. Choose a different label.");
+
         var field = new DeviceTypeField
         {
             DeviceTypeDefinitionId = definitionId,
@@ -201,9 +281,9 @@ public class DeviceTypeService : IDeviceTypeService
         _context.DeviceTypeFields.Add(field);
         await _context.SaveChangesAsync();
 
-        var defName = (await _context.DeviceTypeDefinitions.FindAsync(definitionId))?.Name ?? $"Apparaattype #{definitionId}";
+        var defName = (await _context.DeviceTypeDefinitions.FindAsync(definitionId))?.Name ?? $"Device Type #{definitionId}";
         await _audit.LogAsync("CREATE", "DeviceTypeDefinition", definitionId, defName,
-            newValues: new { Veld = field.Label, field.FieldType, field.IsRequired, field.AlertOnExpiry, field.SelectOptions });
+            newValues: new { Field = field.Label, field.FieldType, field.IsRequired, field.AlertOnExpiry, field.SelectOptions });
 
         return new DeviceTypeFieldDto
         {
@@ -223,7 +303,7 @@ public class DeviceTypeService : IDeviceTypeService
         var field = await _context.DeviceTypeFields.FindAsync(fieldId);
         if (field == null) return;
 
-        var old = new { Veld = field.Label, field.FieldType, field.IsRequired, field.AlertOnExpiry, field.SelectOptions };
+        var old = new { Field = field.Label, field.FieldType, field.IsRequired, field.AlertOnExpiry, field.SelectOptions };
 
         field.Label         = dto.Label;
         field.FieldType     = dto.FieldType;
@@ -233,10 +313,10 @@ public class DeviceTypeService : IDeviceTypeService
 
         await _context.SaveChangesAsync();
 
-        var defName = (await _context.DeviceTypeDefinitions.FindAsync(field.DeviceTypeDefinitionId))?.Name ?? "Apparaattype";
+        var defName = (await _context.DeviceTypeDefinitions.FindAsync(field.DeviceTypeDefinitionId))?.Name ?? "Device Type";
         await _audit.LogAsync("UPDATE", "DeviceTypeDefinition", field.DeviceTypeDefinitionId, defName,
             oldValues: old,
-            newValues: new { Veld = field.Label, field.FieldType, field.IsRequired, field.AlertOnExpiry, field.SelectOptions });
+            newValues: new { Field = field.Label, field.FieldType, field.IsRequired, field.AlertOnExpiry, field.SelectOptions });
     }
 
     public async Task DeleteFieldAsync(int fieldId)
@@ -246,7 +326,7 @@ public class DeviceTypeService : IDeviceTypeService
 
         var defId      = field.DeviceTypeDefinitionId;
         var fieldLabel = field.Label;
-        var defName    = (await _context.DeviceTypeDefinitions.FindAsync(defId))?.Name ?? "Apparaattype";
+        var defName    = (await _context.DeviceTypeDefinitions.FindAsync(defId))?.Name ?? "Device Type";
 
         var values = await _context.DeviceFieldValues
             .Where(v => v.DeviceTypeFieldId == fieldId)
@@ -257,17 +337,37 @@ public class DeviceTypeService : IDeviceTypeService
         await _context.SaveChangesAsync();
 
         await _audit.LogAsync("DELETE", "DeviceTypeDefinition", defId, defName,
-            oldValues: new { Veld = fieldLabel });
+            oldValues: new { Field = fieldLabel });
     }
 
     public async Task DeleteDefinitionAsync(int id)
     {
         var definition = await _context.DeviceTypeDefinitions
             .Include(d => d.Fields)
-                .ThenInclude(f => f.Values)
             .FirstOrDefaultAsync(d => d.Id == id);
 
         if (definition == null) return;
+
+        // There is no real FK between Device.DeviceType and
+        // DeviceTypeDefinition (only the same enum value) — without this
+        // check, deleting would always succeed but leave existing devices of
+        // this type "orphaned".
+        var deviceCount = await _context.Devices.CountAsync(d => d.DeviceType == definition.DeviceType);
+        if (deviceCount > 0)
+        {
+            var suffix = deviceCount == 1 ? "1 device" : $"{deviceCount} devices";
+            throw new InvalidOperationException(
+                $"'{definition.Name}' cannot be deleted: there {(deviceCount == 1 ? "is still" : "are still")} {suffix} of this type. " +
+                "Delete or change those devices to a different type first.");
+        }
+
+        var fieldIds = definition.Fields.Select(f => f.Id).ToList();
+        if (fieldIds.Count > 0)
+        {
+            await _context.DeviceFieldValues
+                .Where(v => fieldIds.Contains(v.DeviceTypeFieldId))
+                .ExecuteDeleteAsync();
+        }
 
         var snapshot = new { definition.Name, definition.Description };
 
@@ -279,12 +379,27 @@ public class DeviceTypeService : IDeviceTypeService
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private async Task<string?> FindConflictingDeviceNameAsync(int networkId, int? excludeDeviceId, string value)
+    {
+        var query = _context.DeviceFieldValues
+            .Where(v =>
+                v.Device.NetworkId == networkId &&
+                v.Value == value &&
+                (v.Field.FieldType == "ipv4" || v.Field.FieldType == "ipv6" || v.Field.FieldKey == "ip_address"));
+
+        if (excludeDeviceId.HasValue)
+            query = query.Where(v => v.DeviceId != excludeDeviceId.Value);
+
+        return await query.Select(v => v.Device.Name).FirstOrDefaultAsync();
+    }
+
     private static DeviceTypeDefinitionDto MapToDto(
         DeviceTypeDefinition            definition,
         Dictionary<int, string>         existingValues) => new()
     {
-        Id   = definition.Id,
-        Name = definition.Name,
+        Id         = definition.Id,
+        DeviceType = definition.DeviceType,
+        Name       = definition.Name,
         Fields = definition.Fields.Select(f => new DeviceTypeFieldDto
         {
             Id            = f.Id,
@@ -303,4 +418,68 @@ public class DeviceTypeService : IDeviceTypeService
         System.Text.RegularExpressions.Regex
             .Replace(label.ToLower().Trim(), @"[^a-z0-9]+", "_")
             .Trim('_');
+
+    private static void ValidateFieldFormat(DeviceTypeField field, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            if (field.IsRequired)
+                throw new DeviceFieldValidationException($"'{field.Label}' is required.");
+            return;
+        }
+
+        switch (field.FieldType)
+        {
+            case "number":
+                if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out _))
+                    throw new DeviceFieldValidationException($"'{field.Label}' must be a number.");
+                break;
+
+            case "date":
+                if (!DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out _))
+                    throw new DeviceFieldValidationException($"'{field.Label}' must be a valid date.");
+                break;
+
+            case "checkbox":
+                if (value != "true" && value != "false")
+                    throw new DeviceFieldValidationException($"'{field.Label}' must be true or false.");
+                break;
+
+            case "ipv4":
+                if (!System.Net.IPAddress.TryParse(value, out var ipv4) ||
+                    ipv4.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                    throw new DeviceFieldValidationException($"'{field.Label}' must be a valid IPv4 address.");
+                break;
+
+            case "ipv6":
+                if (!System.Net.IPAddress.TryParse(value, out var ipv6) ||
+                    ipv6.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6)
+                    throw new DeviceFieldValidationException($"'{field.Label}' must be a valid IPv6 address.");
+                break;
+
+            case "mac":
+                if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$"))
+                    throw new DeviceFieldValidationException($"'{field.Label}' must be a valid MAC address (AA:BB:CC:DD:EE:FF).");
+                break;
+
+            case "url":
+                if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                    throw new DeviceFieldValidationException($"'{field.Label}' must be a valid URL.");
+                break;
+
+            case "select":
+                if (!string.IsNullOrWhiteSpace(field.SelectOptions))
+                {
+                    var options = field.SelectOptions.Split(',', StringSplitOptions.TrimEntries);
+                    if (!options.Contains(value))
+                        throw new DeviceFieldValidationException($"'{field.Label}' must be one of: {field.SelectOptions}.");
+                }
+                break;
+
+            // "text" en "textarea" aanvaarden elke niet-lege waarde — niets te checken.
+        }
+    }
 }

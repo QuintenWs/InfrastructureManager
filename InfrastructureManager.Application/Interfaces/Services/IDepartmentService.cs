@@ -6,7 +6,6 @@ namespace InfrastructureManager.Application.Interfaces.Services;
 public interface IDepartmentService
 {
     Task<IEnumerable<DepartmentDto>> GetAllAsync(string? search = null);
-    Task<IEnumerable<DepartmentDto>> GetByLocationAsync(int locationId);
     Task<DepartmentDto?>             GetByIdAsync(int id);
     Task<DepartmentReportDto?>       GetReportAsync(int id);
     Task<IEnumerable<DepartmentPhotoResultDto>> GetPhotosAsync(int departmentId);

@@ -20,6 +20,8 @@ public class DashboardViewModel
     public DashboardSettingsViewModel         Settings       { get; set; } = new();
     public IEnumerable<OverdueVisitDto>       OverdueVisits { get; set; } = new List<OverdueVisitDto>();
 
+    public bool CanViewHistory { get; set; } 
+
 
     /// <summary>For the location filter dropdown in the customize panel.</summary>
     public IEnumerable<SelectListItem> AvailableLocations { get; set; } = new List<SelectListItem>();

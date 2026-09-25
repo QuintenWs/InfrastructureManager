@@ -86,7 +86,10 @@ namespace InfrastructureManager.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[LocationId] IS NOT NULL");
 
-                    b.ToTable("AccessGroupGrants");
+                    b.ToTable("AccessGroupGrants", t =>
+                        {
+                            t.HasCheckConstraint("CK_AccessGroupGrant_ExactlyOneScope", "([DepartmentId] IS NOT NULL AND [LocationId] IS NULL) OR ([DepartmentId] IS NULL AND [LocationId] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.ActionItem", b =>
@@ -399,9 +402,6 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.Property<int>("DeviceType")
                         .HasColumnType("int");
 
-                    b.Property<int>("LocationId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -422,8 +422,6 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentId");
-
-                    b.HasIndex("LocationId");
 
                     b.HasIndex("NetworkId");
 
@@ -770,9 +768,6 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.Property<string>("IspName")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("LocationId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -808,8 +803,6 @@ namespace InfrastructureManager.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentId");
-
-                    b.HasIndex("LocationId");
 
                     b.ToTable("Networks");
                 });
@@ -913,7 +906,10 @@ namespace InfrastructureManager.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[LocationId] IS NOT NULL");
 
-                    b.ToTable("UserAccessGrants");
+                    b.ToTable("UserAccessGrants", t =>
+                        {
+                            t.HasCheckConstraint("CK_UserAccessGrant_ExactlyOneScope", "([DepartmentId] IS NOT NULL AND [LocationId] IS NULL) OR ([DepartmentId] IS NULL AND [LocationId] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.UserAccessGroup", b =>
@@ -1306,20 +1302,12 @@ namespace InfrastructureManager.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("InfrastructureManager.Domain.Entities.Location", "Location")
-                        .WithMany("Devices")
-                        .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.HasOne("InfrastructureManager.Domain.Entities.Network", "Network")
                         .WithMany("Devices")
                         .HasForeignKey("NetworkId")
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Department");
-
-                    b.Navigation("Location");
 
                     b.Navigation("Network");
                 });
@@ -1412,15 +1400,7 @@ namespace InfrastructureManager.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("InfrastructureManager.Domain.Entities.Location", "Location")
-                        .WithMany("Networks")
-                        .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.Navigation("Department");
-
-                    b.Navigation("Location");
                 });
 
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.SiteVisit", b =>
@@ -1588,10 +1568,6 @@ namespace InfrastructureManager.Infrastructure.Migrations
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.Location", b =>
                 {
                     b.Navigation("Departments");
-
-                    b.Navigation("Devices");
-
-                    b.Navigation("Networks");
                 });
 
             modelBuilder.Entity("InfrastructureManager.Domain.Entities.Network", b =>

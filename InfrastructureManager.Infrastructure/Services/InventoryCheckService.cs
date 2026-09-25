@@ -80,36 +80,6 @@ public class InventoryCheckService : IInventoryCheckService
         };
     }
 
-    public async Task<IEnumerable<InventoryCheckSummaryDto>> GetByDepartmentAsync(int departmentId)
-    {
-        var checks = await _context.InventoryChecks
-            .Where(c => c.DepartmentId == departmentId)
-            .Include(c => c.Department).ThenInclude(d => d.Location)
-            .Include(c => c.Items)
-            .OrderByDescending(c => c.CheckDate)
-            .ToListAsync();
-
-        return checks.Select(ToSummaryDto);
-    }
-
-    public async Task<IEnumerable<InventoryCheckSummaryDto>> GetRecentAsync(int take = 10, IReadOnlyCollection<int>? allowedDepartmentIds = null)
-    {
-        var query = _context.InventoryChecks
-            .Include(c => c.Department).ThenInclude(d => d.Location)
-            .Include(c => c.Items)
-            .AsQueryable();
-
-        if (allowedDepartmentIds != null)
-            query = query.Where(c => allowedDepartmentIds.Contains(c.DepartmentId));
-
-        var checks = await query
-            .OrderByDescending(c => c.CheckDate)
-            .Take(take)
-            .ToListAsync();
-
-        return checks.Select(ToSummaryDto);
-    }
-
     public async Task<InventoryCheckDetailDto?> GetByIdAsync(int id)
     {
         var check = await _context.InventoryChecks
@@ -175,7 +145,7 @@ public class InventoryCheckService : IInventoryCheckService
             check.Items.Add(new InventoryCheckItem
             {
                 DeviceId         = item.DeviceId,
-                DeviceName       = device?.Name ?? "(onbekend toestel)",
+                DeviceName       = device?.Name ?? "(unknown device)",
                 DeviceType       = device?.DeviceType.ToString() ?? "-",
                 IsPresent        = item.IsPresent,
                 Remark           = string.IsNullOrWhiteSpace(item.Remark) ? null : item.Remark.Trim(),
@@ -188,10 +158,9 @@ public class InventoryCheckService : IInventoryCheckService
         _context.InventoryChecks.Add(check);
         await _context.SaveChangesAsync();
 
-        var deptName = (await _context.Departments.FindAsync(dto.DepartmentId))?.Name ?? "onbekend departement";
+        var deptName = (await _context.Departments.FindAsync(dto.DepartmentId))?.Name ?? "unknown department";
 
-        await _audit.LogAsync("CREATE", "InventoryCheck", check.Id, $"Controle — {deptName} ({check.CheckDate:dd/MM/yyyy})",
-            newValues: new
+        await _audit.LogAsync("CREATE", "InventoryCheck", check.Id, $"Check — {deptName} ({check.CheckDate:dd/MM/yyyy})",            newValues: new
             {
                 DepartmentId = dto.DepartmentId,
                 Total   = check.Items.Count,
@@ -208,6 +177,22 @@ public class InventoryCheckService : IInventoryCheckService
         }
 
         return check.Id;
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var check = await _context.InventoryChecks.FindAsync(id);
+        if (check == null) return;
+
+        var snapshot = new { check.DepartmentId, check.CheckDate, check.Notes, check.UserDisplayName };
+
+        _context.InventoryChecks.Remove(check);
+        await _context.SaveChangesAsync();
+
+        await _audit.LogAsync("DELETE", "InventoryCheck", id,
+            $"Check — {snapshot.CheckDate:dd/MM/yyyy}",
+            oldValues: new { snapshot.DepartmentId, snapshot.CheckDate, snapshot.Notes, snapshot.UserDisplayName },
+            departmentId: snapshot.DepartmentId);
     }
 
     public async Task<(byte[] Data, string ContentType, string FileName, int DepartmentId)?> GetPhotoAsync(int itemId)
@@ -231,13 +216,22 @@ public class InventoryCheckService : IInventoryCheckService
             .FirstOrDefaultAsync();
     }
 
+    public async Task<DateTime?> GetLastCheckDateAsync(int departmentId)
+    {
+        return await _context.InventoryChecks
+            .Where(c => c.DepartmentId == departmentId)
+            .OrderByDescending(c => c.CheckDate)
+            .Select(c => (DateTime?)c.CheckDate)
+            .FirstOrDefaultAsync();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private async Task<(string? userId, string displayName)> GetCurrentUserAsync()
     {
         var httpUser = _httpContextAccessor.HttpContext?.User;
         string? userId = null;
-        string display = "Systeem";
+        string display = "System";
 
         if (httpUser?.Identity?.IsAuthenticated == true)
         {
@@ -247,7 +241,7 @@ public class InventoryCheckService : IInventoryCheckService
                 userId  = appUser.Id;
                 display = $"{appUser.FirstName} {appUser.LastName}".Trim();
                 if (string.IsNullOrWhiteSpace(display))
-                    display = appUser.Email ?? "Onbekend";
+                    display = appUser.Email ?? "Unknown";
             }
         }
 

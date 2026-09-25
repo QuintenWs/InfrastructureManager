@@ -6,7 +6,6 @@ namespace InfrastructureManager.Application.Interfaces.Services;
 
 public interface IDeviceService
 {
-    Task<IEnumerable<DeviceDto>> GetAllAsync(string? search = null);
     Task<DeviceDto?> GetByIdAsync(int id);
     Task<int> CreateAsync(CreateDeviceDto dto);   // returns new device id
     Task UpdateAsync(UpdateDeviceDto dto);

@@ -44,16 +44,16 @@ public class AccessGroupDetailsViewModel
 
 public class CreateAccessGroupViewModel
 {
-    [Required(ErrorMessage = "Naam is verplicht.")]
+    [Required(ErrorMessage = "Name is required.")]
     [MaxLength(200)]
-    [Display(Name = "Naam")]
+    [Display(Name = "Name")]
     public string Name { get; set; } = string.Empty;
 
     [MaxLength(500)]
-    [Display(Name = "Omschrijving")]
+    [Display(Name = "Description")]
     public string? Description { get; set; }
 
-    [Display(Name = "Mag geschiedenis bekijken")]
+    [Display(Name = "Can view history")]
     public bool CanViewHistory { get; set; }
 }
 
@@ -61,15 +61,15 @@ public class EditAccessGroupViewModel
 {
     public int Id { get; set; }
 
-    [Required(ErrorMessage = "Naam is verplicht.")]
+    [Required(ErrorMessage = "Name is required.")]
     [MaxLength(200)]
-    [Display(Name = "Naam")]
+    [Display(Name = "Name")]
     public string Name { get; set; } = string.Empty;
 
     [MaxLength(500)]
-    [Display(Name = "Omschrijving")]
+    [Display(Name = "Description")]
     public string? Description { get; set; }
 
-    [Display(Name = "Mag geschiedenis bekijken")]
+    [Display(Name = "Can view history")]
     public bool CanViewHistory { get; set; }
 }

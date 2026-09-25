@@ -8,4 +8,6 @@ public class NetworkIndexViewModel
 
     public NetworkFilterViewModel Filter { get; set; }
         = new();
+
+    public InfrastructureManager.Web.ViewModels.Shared.PaginationViewModel Pagination { get; set; } = new();
 }

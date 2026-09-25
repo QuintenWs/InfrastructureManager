@@ -1,5 +1,4 @@
 using InfrastructureManager.Application.DTOs.Contacts;
-using InfrastructureManager.Application.Interfaces.Repositories;
 using InfrastructureManager.Application.Interfaces.Services;
 using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Application.Common;
@@ -10,15 +9,13 @@ namespace InfrastructureManager.Infrastructure.Services;
 
 public class ContactService : IContactService
 {
-    private readonly IContactRepository _repository;
-    private readonly IAuditService      _audit;
-    private readonly AppDbContext       _context;
+    private readonly IAuditService _audit;
+    private readonly AppDbContext  _context;
 
-    public ContactService(IContactRepository repository, IAuditService audit, AppDbContext context)
+    public ContactService(IAuditService audit, AppDbContext context)
     {
-        _repository = repository;
-        _audit      = audit;
-        _context    = context;
+        _audit   = audit;
+        _context = context;
     }
 
     public async Task<PagedResult<ContactDto>> GetPagedAsync(
@@ -72,21 +69,23 @@ public class ContactService : IContactService
         return new PagedResult<ContactDto> { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
     }
 
-    public async Task<IEnumerable<ContactDto>> GetAllAsync(string? search = null)
-    {
-        var items = await _repository.GetAllWithDetailsAsync(search);
-        return items.Select(ToDto);
-    }
-
     public async Task<ContactDto?> GetByIdAsync(int id)
     {
-        var item = await _repository.GetDetailsByIdAsync(id);
+        var item = await _context.Contacts
+            .Include(x => x.Department).ThenInclude(d => d.Location)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
         return item == null ? null : ToDto(item);
     }
 
     public async Task<IEnumerable<ContactDto>> GetByDepartmentAsync(int departmentId)
     {
-        var items = await _repository.GetByDepartmentAsync(departmentId);
+        var items = await _context.Contacts
+            .Include(x => x.Department).ThenInclude(d => d.Location)
+            .Where(x => x.DepartmentId == departmentId)
+            .OrderBy(x => x.LastName)
+            .ToListAsync();
+
         return items.Select(ToDto);
     }
 
@@ -103,8 +102,8 @@ public class ContactService : IContactService
             Notes        = dto.Notes
         };
 
-        await _repository.AddAsync(entity);
-        await _repository.SaveChangesAsync();
+        _context.Contacts.Add(entity);
+        await _context.SaveChangesAsync();
 
         await _audit.LogAsync("CREATE", "Contact", entity.Id, entity.FullName,
             newValues: new { entity.FirstName, entity.LastName, entity.Email, entity.Phone, entity.Role, entity.Notes, entity.DepartmentId },
@@ -113,7 +112,7 @@ public class ContactService : IContactService
 
     public async Task UpdateAsync(UpdateContactDto dto)
     {
-        var entity = await _repository.GetByIdAsync(dto.Id);
+        var entity = await _context.Contacts.FindAsync(dto.Id);
         if (entity == null) return;
 
         var old = new { entity.FirstName, entity.LastName, entity.Email, entity.Phone, entity.Role, entity.Notes, entity.DepartmentId };
@@ -125,9 +124,9 @@ public class ContactService : IContactService
         entity.Phone        = dto.Phone;
         entity.Role         = dto.Role;
         entity.Notes        = dto.Notes;
+        entity.UpdatedAt    = DateTime.UtcNow;
 
-        _repository.Update(entity);
-        await _repository.SaveChangesAsync();
+        await _context.SaveChangesAsync();
 
         await _audit.LogAsync("UPDATE", "Contact", entity.Id, entity.FullName,
             oldValues: old,
@@ -137,13 +136,13 @@ public class ContactService : IContactService
 
     public async Task DeleteAsync(int id)
     {
-        var entity = await _repository.GetByIdAsync(id);
+        var entity = await _context.Contacts.FindAsync(id);
         if (entity == null) return;
 
         var snapshot = new { entity.FirstName, entity.LastName, entity.Email, entity.Phone, entity.Role, entity.Notes, entity.DepartmentId };
 
-        _repository.Delete(entity);
-        await _repository.SaveChangesAsync();
+        _context.Contacts.Remove(entity);
+        await _context.SaveChangesAsync();
 
         await _audit.LogAsync("DELETE", "Contact", id,
             $"{snapshot.FirstName} {snapshot.LastName}".Trim(),
