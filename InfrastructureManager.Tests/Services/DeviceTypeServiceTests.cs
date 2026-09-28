@@ -1,5 +1,4 @@
 using InfrastructureManager.Application.Interfaces.Services;
-using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Domain.Enums;
 using InfrastructureManager.Domain.Exceptions;
 using InfrastructureManager.Infrastructure.Data;
@@ -23,18 +22,14 @@ public class DeviceTypeServiceTests
     [Fact]
     public async Task DeleteDefinitionAsync_WithExistingDevices_ThrowsAndDoesNotDelete()
     {
-        // Regressietest voor rapportpunt 1.3: verwijderen van een Device Type
-        // dat nog in gebruik is, moet geblokkeerd worden i.p.v. te crashen of
-        // stilzwijgend toestellen te "verwezen".
+        // Regressietest voor rapportpunt 1.3: een Device Type dat nog in gebruik
+        // is mag niet verwijderd worden.
         var sut = CreateSut(out var context);
 
-        var location   = new Location { Name = "Loc", City = "City", Country = "Country" };
-        var department = new Department { Location = location, Name = "Dept", Address = "Addr" };
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Switch, Name = "Switch" };
-        var device     = new Device { Department = department, Name = "SW-01", DeviceType = DeviceType.Switch, Status = DeviceStatus.Active };
-
-        context.AddRange(location, department, definition, device);
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Switch, "Switch");
+        await TestData.AddDeviceAsync(context, department.Id, DeviceType.Switch, name: "SW-01");
+        context.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.DeleteDefinitionAsync(definition.Id));
 
@@ -46,9 +41,8 @@ public class DeviceTypeServiceTests
     {
         var sut = CreateSut(out var context);
 
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Printer, Name = "Printer" };
-        context.Add(definition);
-        await context.SaveChangesAsync();
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Printer, "Printer");
+        context.ChangeTracker.Clear();
 
         await sut.DeleteDefinitionAsync(definition.Id);
 
@@ -58,22 +52,26 @@ public class DeviceTypeServiceTests
     [Fact]
     public async Task DeleteDefinitionAsync_WithFieldValues_RemovesValuesBeforeDeleting()
     {
-        // Regressietest voor de tweede helft van 1.3: de NoAction-FK op
-        // DeviceFieldValues -> DeviceTypeField mocht nooit meer een
-        // onafgevangen DbUpdateException geven, zelfs met historische waarden.
+        // Regressietest voor de tweede helft van 1.3: de NoAction-FK
+        // DeviceFieldValue -> DeviceTypeField mag niet meer voor een
+        // DbUpdateException zorgen. Het device hieronder heeft bewust een ANDER
+        // type (Other) dan de definitie (NAS): anders zou de "nog in gebruik"-
+        // blokkade eerst toeslaan. Het is precies het scenario van een
+        // verweesde waarde na een type-wissel.
         var sut = CreateSut(out var context);
 
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.NAS, Name = "NAS" };
-        var field      = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "IP", FieldKey = "ip_address", FieldType = "text" };
-        context.AddRange(definition, field);
-        await context.SaveChangesAsync();
-
-        context.Add(new DeviceFieldValue { DeviceTypeFieldId = field.Id, DeviceId = 999, Value = "10.0.0.1" });
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.NAS, "NAS");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "IP", "ip_address");
+        var device     = await TestData.AddDeviceAsync(context, department.Id, DeviceType.Other);
+        await TestData.AddFieldValueAsync(context, device.Id, field.Id, "10.0.0.1");
+        context.ChangeTracker.Clear();
 
         await sut.DeleteDefinitionAsync(definition.Id);
 
         Assert.False(await context.DeviceFieldValues.AnyAsync());
+        Assert.False(await context.DeviceTypeFields.AnyAsync());
+        Assert.False(await context.DeviceTypeDefinitions.AnyAsync());
     }
 
     [Fact]
@@ -81,18 +79,13 @@ public class DeviceTypeServiceTests
     {
         var sut = CreateSut(out var context);
 
-        var location    = new Location { Name = "Loc", City = "City", Country = "Country" };
-        var department  = new Department { Location = location, Name = "Dept", Address = "Addr" };
-        var network      = new Network { Department = department, Name = "LAN", NetworkAddress = "10.0.0.0", SubnetMask = "255.255.255.0", Cidr = 24, Gateway = "10.0.0.1", PrimaryDns = "8.8.8.8" };
-        var definition   = new DeviceTypeDefinition { DeviceType = DeviceType.Desktop, Name = "Desktop" };
-        var field        = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "IP Address", FieldKey = "ip_address", FieldType = "text" };
-        var existingDevice = new Device { Department = department, Network = network, Name = "PC-01", DeviceType = DeviceType.Desktop, Status = DeviceStatus.Active };
-
-        context.AddRange(location, department, network, definition, field, existingDevice);
-        await context.SaveChangesAsync();
-
-        context.Add(new DeviceFieldValue { DeviceTypeFieldId = field.Id, DeviceId = existingDevice.Id, Value = "10.0.0.50" });
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var network    = await TestData.AddNetworkAsync(context, department.Id, "LAN", "10.0.0.0", "255.255.255.0", 24, "10.0.0.1");
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Desktop, "Desktop");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "IP Address", "ip_address");
+        var existing   = await TestData.AddDeviceAsync(context, department.Id, DeviceType.Desktop, network.Id, "PC-01");
+        await TestData.AddFieldValueAsync(context, existing.Id, field.Id, "10.0.0.50");
+        context.ChangeTracker.Clear();
 
         var fieldValues = new Dictionary<int, string> { { field.Id, "10.0.0.50" } };
 
@@ -106,28 +99,22 @@ public class DeviceTypeServiceTests
     [Fact]
     public async Task ValidateFieldValuesAsync_SameIpOnDifferentNetwork_DoesNotThrow()
     {
-        // Twee netwerken mogen legitiem hetzelfde privé-IP gebruiken — het
-        // conflict is per Network geschoped, niet globaal (zie rapport 2.4).
+        // Het conflict is per Network gescoped, niet globaal (zie rapport 2.4).
         var sut = CreateSut(out var context);
 
-        var location   = new Location { Name = "Loc", City = "City", Country = "Country" };
-        var department = new Department { Location = location, Name = "Dept", Address = "Addr" };
-        var networkA   = new Network { Department = department, Name = "LAN A", NetworkAddress = "10.0.0.0", SubnetMask = "255.255.255.0", Cidr = 24, Gateway = "10.0.0.1", PrimaryDns = "8.8.8.8" };
-        var networkB   = new Network { Department = department, Name = "LAN B", NetworkAddress = "10.0.1.0", SubnetMask = "255.255.255.0", Cidr = 24, Gateway = "10.0.1.1", PrimaryDns = "8.8.8.8" };
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Desktop, Name = "Desktop" };
-        var field      = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "IP Address", FieldKey = "ip_address", FieldType = "text" };
-        var existingDevice = new Device { Department = department, Network = networkA, Name = "PC-01", DeviceType = DeviceType.Desktop, Status = DeviceStatus.Active };
-
-        context.AddRange(location, department, networkA, networkB, definition, field, existingDevice);
-        await context.SaveChangesAsync();
-
-        context.Add(new DeviceFieldValue { DeviceTypeFieldId = field.Id, DeviceId = existingDevice.Id, Value = "10.0.0.50" });
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var networkA   = await TestData.AddNetworkAsync(context, department.Id, "LAN A", "10.0.0.0", "255.255.255.0", 24, "10.0.0.1");
+        var networkB   = await TestData.AddNetworkAsync(context, department.Id, "LAN B", "10.0.1.0", "255.255.255.0", 24, "10.0.1.1");
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Desktop, "Desktop");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "IP Address", "ip_address");
+        var existing   = await TestData.AddDeviceAsync(context, department.Id, DeviceType.Desktop, networkA.Id, "PC-01");
+        await TestData.AddFieldValueAsync(context, existing.Id, field.Id, "10.0.0.50");
+        context.ChangeTracker.Clear();
 
         var fieldValues = new Dictionary<int, string> { { field.Id, "10.0.0.50" } };
 
+        // Zelfde IP-string, maar op netwerk B: geen conflict, dus geen exception.
         await sut.ValidateFieldValuesAsync(networkB.Id, excludeDeviceId: null, fieldValues);
-        // Geen exception = geslaagd
     }
 
     [Theory]
@@ -135,16 +122,16 @@ public class DeviceTypeServiceTests
     [InlineData("date", "not-a-date")]
     [InlineData("mac", "not-a-mac-address")]
     [InlineData("ipv4", "999.999.999.999")]
-    public async Task SaveFieldValuesAsync_InvalidFormatForType_ThrowsDeviceFieldValidationException(string fieldType, string invalidValue)
+    public async Task SaveFieldValuesAsync_InvalidFormatForType_ThrowsDeviceFieldValidationException(
+        string fieldType, string invalidValue)
     {
         var sut = CreateSut(out var context);
 
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Other, Name = "TestType" };
-        var field      = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "Field", FieldKey = "test_field", FieldType = fieldType };
-        var device     = new Device { Name = "DEV-01", DeviceType = DeviceType.Other, Status = DeviceStatus.Active };
-
-        context.AddRange(definition, field, device);
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Other, "TestType");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "Field", "test_field", fieldType);
+        var device     = await TestData.AddDeviceAsync(context, department.Id);
+        context.ChangeTracker.Clear();
 
         var fieldValues = new Dictionary<int, string> { { field.Id, invalidValue } };
 
@@ -157,12 +144,11 @@ public class DeviceTypeServiceTests
     {
         var sut = CreateSut(out var context);
 
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Other, Name = "TestType" };
-        var field      = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "Serial", FieldKey = "serial", FieldType = "text" };
-        var device     = new Device { Name = "DEV-01", DeviceType = DeviceType.Other, Status = DeviceStatus.Active };
-
-        context.AddRange(definition, field, device);
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Other, "TestType");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "Serial", "serial");
+        var device     = await TestData.AddDeviceAsync(context, department.Id);
+        context.ChangeTracker.Clear();
 
         await sut.SaveFieldValuesAsync(device.Id, new Dictionary<int, string> { { field.Id, "SN-12345" } });
 
@@ -177,17 +163,14 @@ public class DeviceTypeServiceTests
         // ongerelateerde bewerking niet blokkeren (zie rapport 6.5).
         var sut = CreateSut(out var context);
 
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Other, Name = "TestType" };
-        var field      = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "Count", FieldKey = "count", FieldType = "number" };
-        var device     = new Device { Name = "DEV-01", DeviceType = DeviceType.Other, Status = DeviceStatus.Active };
+        var department = await TestData.AddDepartmentAsync(context);
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Other, "TestType");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "Count", "count", "number");
+        var device     = await TestData.AddDeviceAsync(context, department.Id);
+        await TestData.AddFieldValueAsync(context, device.Id, field.Id, "not-a-number");
+        context.ChangeTracker.Clear();
 
-        context.AddRange(definition, field, device);
-        await context.SaveChangesAsync();
-
-        context.Add(new DeviceFieldValue { DeviceTypeFieldId = field.Id, DeviceId = device.Id, Value = "not-a-number" });
-        await context.SaveChangesAsync();
-
-        // Zelfde (formeel ongeldige) waarde opnieuw meesturen — mag niet crashen.
+        // Dezelfde (formeel ongeldige) waarde opnieuw meesturen mag niet crashen.
         await sut.SaveFieldValuesAsync(device.Id, new Dictionary<int, string> { { field.Id, "not-a-number" } });
     }
 }

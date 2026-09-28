@@ -1,6 +1,5 @@
 using InfrastructureManager.Application.DTOs.Devices;
 using InfrastructureManager.Application.Interfaces.Services;
-using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Domain.Enums;
 using InfrastructureManager.Infrastructure.Data;
 using InfrastructureManager.Infrastructure.Services;
@@ -26,17 +25,12 @@ public class DeviceServiceTests
         // Regressietest voor rapportpunt 1.2.
         var sut = CreateSut(out var context);
 
-        var department = new Department { Name = "Dept", Address = "Addr" };
-        var device = new Device { Department = department, Name = "DEV-01", DeviceType = DeviceType.Switch, Status = DeviceStatus.Active };
-        context.AddRange(department, device);
-        await context.SaveChangesAsync();
-
-        var oldTypeField = new DeviceTypeField { Label = "MAC Address", FieldKey = "mac_address", FieldType = "text" };
-        context.Add(oldTypeField);
-        await context.SaveChangesAsync();
-
-        context.Add(new DeviceFieldValue { DeviceId = device.Id, DeviceTypeFieldId = oldTypeField.Id, Value = "AA:BB:CC:DD:EE:FF" });
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Switch, "Switch");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "MAC Address", "mac_address");
+        var device     = await TestData.AddDeviceAsync(context, department.Id, DeviceType.Switch);
+        await TestData.AddFieldValueAsync(context, device.Id, field.Id, "AA:BB:CC:DD:EE:FF");
+        context.ChangeTracker.Clear();
 
         await sut.UpdateAsync(new UpdateDeviceDto
         {
@@ -55,24 +49,19 @@ public class DeviceServiceTests
     {
         var sut = CreateSut(out var context);
 
-        var department = new Department { Name = "Dept", Address = "Addr" };
-        var device = new Device { Department = department, Name = "DEV-01", DeviceType = DeviceType.Switch, Status = DeviceStatus.Active };
-        context.AddRange(department, device);
-        await context.SaveChangesAsync();
-
-        var field = new DeviceTypeField { Label = "MAC Address", FieldKey = "mac_address", FieldType = "text" };
-        context.Add(field);
-        await context.SaveChangesAsync();
-
-        context.Add(new DeviceFieldValue { DeviceId = device.Id, DeviceTypeFieldId = field.Id, Value = "AA:BB:CC:DD:EE:FF" });
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Switch, "Switch");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "MAC Address", "mac_address");
+        var device     = await TestData.AddDeviceAsync(context, department.Id, DeviceType.Switch);
+        await TestData.AddFieldValueAsync(context, device.Id, field.Id, "AA:BB:CC:DD:EE:FF");
+        context.ChangeTracker.Clear();
 
         await sut.UpdateAsync(new UpdateDeviceDto
         {
             Id           = device.Id,
             DepartmentId = department.Id,
             Name         = "DEV-01-renamed",
-            DeviceType   = DeviceType.Switch, // zelfde type, enkel naam wijzigt
+            DeviceType   = DeviceType.Switch, // zelfde type, enkel de naam wijzigt
             Status       = DeviceStatus.Active
         });
 

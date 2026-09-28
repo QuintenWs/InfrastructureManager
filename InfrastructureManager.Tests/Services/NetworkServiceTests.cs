@@ -1,7 +1,6 @@
 using InfrastructureManager.Application.DTOs.Networks;
 using InfrastructureManager.Application.Filters;
 using InfrastructureManager.Application.Interfaces.Services;
-using InfrastructureManager.Domain.Entities;
 using InfrastructureManager.Domain.Enums;
 using InfrastructureManager.Domain.Exceptions;
 using InfrastructureManager.Infrastructure.Data;
@@ -26,10 +25,8 @@ public class NetworkServiceTests
     public async Task CreateAsync_OverlappingSubnet_ThrowsSubnetValidationException()
     {
         var sut = CreateSut(out var context);
-
-        var department = new Department { Name = "Dept", Address = "Addr" };
-        context.Add(department);
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        context.ChangeTracker.Clear();
 
         await sut.CreateAsync(new CreateNetworkDto
         {
@@ -51,10 +48,8 @@ public class NetworkServiceTests
     public async Task CreateAsync_NonOverlappingSubnet_Succeeds()
     {
         var sut = CreateSut(out var context);
-
-        var department = new Department { Name = "Dept", Address = "Addr" };
-        context.Add(department);
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        context.ChangeTracker.Clear();
 
         await sut.CreateAsync(new CreateNetworkDto
         {
@@ -76,10 +71,8 @@ public class NetworkServiceTests
     public async Task CreateAsync_InvalidNetworkAddressForCidr_ThrowsSubnetValidationException()
     {
         var sut = CreateSut(out var context);
-
-        var department = new Department { Name = "Dept", Address = "Addr" };
-        context.Add(department);
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        context.ChangeTracker.Clear();
 
         // 192.168.1.5 is geen geldig netwerkadres voor /24 (host-bits gezet).
         await Assert.ThrowsAsync<SubnetValidationException>(() => sut.CreateAsync(new CreateNetworkDto
@@ -93,21 +86,19 @@ public class NetworkServiceTests
     [Fact]
     public async Task FilterPagedAsync_RespectsAllowedDepartmentIds()
     {
-        // Beveiligingsregressie: als AllowedDepartmentIds ooit per ongeluk
-        // niet meer toegepast wordt, zou dit onmiddellijk falen.
+        // Beveiligingsregressie: als AllowedDepartmentIds ooit per ongeluk niet
+        // meer toegepast wordt, faalt dit onmiddellijk.
         var sut = CreateSut(out var context);
 
-        var deptA = new Department { Name = "Dept A", Address = "Addr" };
-        var deptB = new Department { Name = "Dept B", Address = "Addr" };
-        context.AddRange(deptA, deptB);
-        await context.SaveChangesAsync();
+        var location = await TestData.AddLocationAsync(context);
+        var deptA    = await TestData.AddDepartmentAsync(context, "Dept A", location);
+        var deptB    = await TestData.AddDepartmentAsync(context, "Dept B", location);
+        await TestData.AddNetworkAsync(context, deptA.Id, "LAN A", "10.0.0.0", "255.255.255.0", 24, "10.0.0.1");
+        await TestData.AddNetworkAsync(context, deptB.Id, "LAN B", "10.0.1.0", "255.255.255.0", 24, "10.0.1.1");
+        context.ChangeTracker.Clear();
 
-        context.AddRange(
-            new Network { DepartmentId = deptA.Id, Name = "LAN A", NetworkAddress = "10.0.0.0", SubnetMask = "255.255.255.0", Cidr = 24, Gateway = "10.0.0.1", PrimaryDns = "8.8.8.8" },
-            new Network { DepartmentId = deptB.Id, Name = "LAN B", NetworkAddress = "10.0.1.0", SubnetMask = "255.255.255.0", Cidr = 24, Gateway = "10.0.1.1", PrimaryDns = "8.8.8.8" });
-        await context.SaveChangesAsync();
-
-        var result = await sut.FilterPagedAsync(new NetworkFilter { AllowedDepartmentIds = new[] { deptA.Id } }, page: 1, pageSize: 20);
+        var result = await sut.FilterPagedAsync(
+            new NetworkFilter { AllowedDepartmentIds = new[] { deptA.Id } }, page: 1, pageSize: 20);
 
         Assert.Single(result.Items);
         Assert.Equal("LAN A", result.Items[0].Name);
@@ -118,25 +109,16 @@ public class NetworkServiceTests
     {
         var sut = CreateSut(out var context);
 
-        var department = new Department { Name = "Dept", Address = "Addr" };
-        var network = new Network
-        {
-            Department = department, Name = "LAN", NetworkAddress = "10.0.0.0",
-            SubnetMask = "255.255.255.252", Cidr = 30, // slechts 2 bruikbare host-adressen: .1 en .2
-            Gateway = "10.0.0.1", PrimaryDns = "8.8.8.8"
-        };
-        context.AddRange(department, network);
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        // /30 = slechts 2 bruikbare host-adressen: .1 en .2
+        var network    = await TestData.AddNetworkAsync(context, department.Id, "LAN", "10.0.0.0", "255.255.255.252", 30, "10.0.0.1");
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Switch, "Switch");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "IP Address", "ip_address");
+        var device     = await TestData.AddDeviceAsync(context, department.Id, DeviceType.Switch, network.Id, "SW-01");
 
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Switch, Name = "Switch" };
-        var field      = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "IP Address", FieldKey = "ip_address", FieldType = "text" };
-        var device     = new Device { Department = department, Network = network, Name = "SW-01", DeviceType = DeviceType.Switch, Status = DeviceStatus.Active };
-        context.AddRange(definition, field, device);
-        await context.SaveChangesAsync();
-
-        // .1 is al bezet door de Gateway zelf, .2 wordt hier vastgelegd via het device
-        context.Add(new DeviceFieldValue { DeviceTypeFieldId = field.Id, DeviceId = device.Id, Value = "10.0.0.2" });
-        await context.SaveChangesAsync();
+        // .1 is bezet door de gateway zelf, .2 door dit device
+        await TestData.AddFieldValueAsync(context, device.Id, field.Id, "10.0.0.2");
+        context.ChangeTracker.Clear();
 
         var suggestion = await sut.SuggestNextFreeIpAsync(network.Id);
 
@@ -148,28 +130,18 @@ public class NetworkServiceTests
     {
         var sut = CreateSut(out var context);
 
-        var department = new Department { Name = "Dept", Address = "Addr" };
-        var network = new Network
-        {
-            Department = department, Name = "LAN", NetworkAddress = "10.0.0.0",
-            SubnetMask = "255.255.255.248", Cidr = 29, // 6 bruikbare host-adressen: .1 t.e.m. .6
-            Gateway = "10.0.0.1", PrimaryDns = "8.8.8.8"
-        };
-        context.AddRange(department, network);
-        await context.SaveChangesAsync();
-
-        var definition = new DeviceTypeDefinition { DeviceType = DeviceType.Switch, Name = "Switch" };
-        var field      = new DeviceTypeField { DeviceTypeDefinition = definition, Label = "IP Address", FieldKey = "ip_address", FieldType = "text" };
-        var device     = new Device { Department = department, Network = network, Name = "SW-01", DeviceType = DeviceType.Switch, Status = DeviceStatus.Active };
-        context.AddRange(definition, field, device);
-        await context.SaveChangesAsync();
-
-        context.Add(new DeviceFieldValue { DeviceTypeFieldId = field.Id, DeviceId = device.Id, Value = "10.0.0.2" });
-        await context.SaveChangesAsync();
+        var department = await TestData.AddDepartmentAsync(context);
+        // /29 = 6 bruikbare host-adressen: .1 t.e.m. .6
+        var network    = await TestData.AddNetworkAsync(context, department.Id, "LAN", "10.0.0.0", "255.255.255.248", 29, "10.0.0.1");
+        var definition = await TestData.AddDefinitionAsync(context, DeviceType.Switch, "Switch");
+        var field      = await TestData.AddFieldAsync(context, definition.Id, "IP Address", "ip_address");
+        var device     = await TestData.AddDeviceAsync(context, department.Id, DeviceType.Switch, network.Id, "SW-01");
+        await TestData.AddFieldValueAsync(context, device.Id, field.Id, "10.0.0.2");
+        context.ChangeTracker.Clear();
 
         var suggestion = await sut.SuggestNextFreeIpAsync(network.Id);
 
-        // .1 = Gateway (bezet), .2 = device hierboven (bezet) → eerste vrije is .3
+        // .1 = gateway (bezet), .2 = device (bezet), dus de eerste vrije is .3
         Assert.Equal("10.0.0.3", suggestion);
     }
 }
